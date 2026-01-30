@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Test Supabase Connection</title>
+</head>
+<body>
+  <h1>Testing Supabase Connection</h1>
+  <button onclick="testConnection()">Test Connection</button>
+  <pre id="output"></pre>
+
+  <script type="module">
+    import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+
+    const supabase = createClient(
+      'https://qvpxzyzukaayqthdtfka.supabase.co',
+      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF2cHh6eXp1a2FheXF0aGR0ZmthIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Mzc0MjEzODksImV4cCI6MjA1Mjk5NzM4OX0.pBA2AI2YT2qVPqJW4kD16g'
+    );
+
+    window.testConnection = async function() {
+      const output = document.getElementById('output');
+      output.textContent = 'Testing connection...\n';
+
+      try {
+        // Test 1: Check if notes table exists
+        const { data, error } = await supabase
+          .from('notes')
+          .select('count')
+          .limit(1);
+
+        if (error) {
+          output.textContent += '\n❌ Error: ' + error.message;
+          output.textContent += '\n\nThis likely means the database tables have not been created yet.';
+          output.textContent += '\n\nPlease run the SQL schema in your Supabase dashboard!';
+        } else {
+          output.textContent += '\n✅ Connection successful!';
+          output.textContent += '\n✅ Notes table exists!';
+
+          // Test 2: Try to create a note
+          const { data: newNote, error: createError } = await supabase
+            .from('notes')
+            .insert({ content: 'Test note', title: 'Test' })
+            .select()
+            .single();
+
+          if (createError) {
+            output.textContent += '\n❌ Create error: ' + createError.message;
+          } else {
+            output.textContent += '\n✅ Successfully created a test note!';
+            output.textContent += '\n\nNote ID: ' + newNote.id;
+          }
+        }
+      } catch (err) {
+        output.textContent += '\n❌ Exception: ' + err.message;
+      }
+    };
+  </script>
+</body>
+</html>

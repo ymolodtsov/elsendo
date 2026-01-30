@@ -1,0 +1,5 @@
+{
+  "name": "Flow",
+  "description": "A distraction-free, aesthetically pleasing quick note-taking app with rich text, markdown support, and persistent local storage.",
+  "requestFramePermissions": []
+}
