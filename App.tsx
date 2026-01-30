@@ -163,53 +163,31 @@ const AuthenticatedApp: React.FC = () => {
   );
 };
 
-// Redirect to the most recent note or show empty state
+// Redirect to the most recent note or create one if none exist
 const HomeRedirect: React.FC<{ notes: any[]; loading: boolean; onNewNote: () => void }> = ({ notes, loading, onNewNote }) => {
   const navigate = useNavigate();
+  const creatingRef = useRef(false);
 
   useEffect(() => {
-    if (!loading && notes.length > 0) {
+    if (loading) return;
+
+    if (notes.length > 0) {
       navigate(`/note/${notes[0].id}`, { replace: true });
+    } else if (!creatingRef.current) {
+      // Auto-create a note when there are none
+      creatingRef.current = true;
+      onNewNote();
     }
-  }, [notes, loading, navigate]);
+  }, [notes, loading, navigate, onNewNote]);
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-full">
-        <div className="flex flex-col items-center gap-4 animate-fade-in">
-          <div className="w-8 h-8 border-2 border-stone-200 border-t-stone-500 rounded-full animate-spin" />
-          <p className="text-stone-400 dark:text-stone-500 text-sm">Loading...</p>
-        </div>
+  // Always show loading state while waiting for notes or creating
+  return (
+    <div className="flex items-center justify-center h-full">
+      <div className="flex flex-col items-center gap-4 animate-fade-in">
+        <div className="w-8 h-8 border-2 border-stone-200 border-t-stone-500 rounded-full animate-spin" />
       </div>
-    );
-  }
-
-  if (notes.length === 0) {
-    return (
-      <div className="flex items-center justify-center h-full text-center p-8">
-        <div className="max-w-md animate-fade-in">
-          <div className="w-20 h-20 mx-auto mb-6 rounded-2xl bg-stone-200 dark:bg-stone-700 flex items-center justify-center shadow">
-            <Feather className="w-10 h-10 text-stone-500" strokeWidth={1.5} />
-          </div>
-          <h2 className="text-2xl font-medium text-stone-800 dark:text-stone-100 mb-3">
-            Start writing
-          </h2>
-          <p className="text-stone-500 dark:text-stone-400 mb-6 leading-relaxed">
-            A space for your thoughts.
-          </p>
-          <button
-            onClick={onNewNote}
-            className="inline-flex items-center gap-2 px-5 py-2.5 bg-stone-800 hover:bg-stone-700 text-white rounded-lg transition-all duration-200 shadow hover:shadow-md active:scale-[0.98]"
-          >
-            <Plus className="w-4 h-4" strokeWidth={2} />
-            <span className="text-sm font-medium">New Note</span>
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  return null;
+    </div>
+  );
 };
 
 // Editor route component
