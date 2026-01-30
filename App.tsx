@@ -219,7 +219,7 @@ const EditorRoute: React.FC = () => {
   }
 
   return (
-    <div className="w-full max-w-3xl mx-auto px-8 py-12 transition-all duration-300">
+    <div className="w-full max-w-3xl mx-auto px-8 pt-12 pb-48 transition-all duration-300">
       <Editor noteId={noteId} />
     </div>
   );
@@ -235,7 +235,7 @@ const SharedNoteView: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-stone-50 dark:bg-stone-900 flex items-start justify-center">
-      <div className="w-full max-w-4xl mx-auto px-6 py-8">
+      <div className="w-full max-w-4xl mx-auto px-6 pt-8 pb-32">
         <Editor noteId={token} isShared />
       </div>
     </div>
