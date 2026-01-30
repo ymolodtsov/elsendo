@@ -3,9 +3,11 @@ import { BrowserRouter as Router, Routes, Route, Navigate, useParams, useNavigat
 import { Editor } from './components/Editor';
 import { NotesPanel } from './src/components/NotesPanel';
 import { useNotes } from './src/hooks/useNotes';
-import { Feather, Plus, FileText, X } from 'lucide-react';
+import { AuthProvider, useAuth } from './src/contexts/AuthContext';
+import { LoginForm } from './src/components/LoginForm';
+import { Feather, Plus, FileText, X, Loader2 } from 'lucide-react';
 
-const App: React.FC = () => {
+const AuthenticatedApp: React.FC = () => {
   const [isNotesOpen, setIsNotesOpen] = useState(false);
   const [showMigrationToast, setShowMigrationToast] = useState(false);
   const { notes, loading, createNote, deleteNote, getNotes } = useNotes();
@@ -242,14 +244,38 @@ const SharedNoteView: React.FC = () => {
   );
 };
 
-// Wrapper component with Router
+// App component with auth guard
+const App: React.FC = () => {
+  const { user, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-stone-50 dark:bg-stone-950 flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="w-8 h-8 text-stone-400 animate-spin" />
+          <p className="text-stone-500 dark:text-stone-400 text-sm">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <LoginForm />;
+  }
+
+  return <AuthenticatedApp />;
+};
+
+// Wrapper component with Router and Auth
 const AppWithRouter: React.FC = () => {
   return (
     <Router>
-      <Routes>
-        <Route path="/shared/:token" element={<SharedNoteView />} />
-        <Route path="/*" element={<App />} />
-      </Routes>
+      <AuthProvider>
+        <Routes>
+          <Route path="/shared/:token" element={<SharedNoteView />} />
+          <Route path="/*" element={<App />} />
+        </Routes>
+      </AuthProvider>
     </Router>
   );
 };

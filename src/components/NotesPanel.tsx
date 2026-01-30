@@ -2,7 +2,8 @@ import React from 'react';
 import { useParams } from 'react-router-dom';
 import { Note } from '../types';
 import { formatDistanceToNow } from 'date-fns';
-import { Trash2, Plus } from 'lucide-react';
+import { Trash2, Plus, LogOut } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
 
 interface NotesPanelProps {
   notes: Note[];
@@ -18,6 +19,13 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({
   onNewNote,
 }) => {
   const { noteId } = useParams();
+  const { signOut } = useAuth();
+
+  const handleLogout = async () => {
+    if (window.confirm('Sign out of Elsendo?')) {
+      await signOut();
+    }
+  };
 
   const extractTitle = (note: Note): string => {
     if (note.title) return note.title;
@@ -46,13 +54,22 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({
         <span className="text-sm font-medium text-stone-600 dark:text-stone-300">
           {notes.length} {notes.length === 1 ? 'note' : 'notes'}
         </span>
-        <button
-          onClick={onNewNote}
-          className="p-1.5 rounded-lg text-stone-400 hover:text-stone-600 dark:hover:text-stone-200 hover:bg-stone-100 dark:hover:bg-stone-700 transition-colors"
-          aria-label="New note"
-        >
-          <Plus className="w-4 h-4" strokeWidth={2} />
-        </button>
+        <div className="flex items-center gap-1">
+          <button
+            onClick={onNewNote}
+            className="p-1.5 rounded-lg text-stone-400 hover:text-stone-600 dark:hover:text-stone-200 hover:bg-stone-100 dark:hover:bg-stone-700 transition-colors"
+            aria-label="New note"
+          >
+            <Plus className="w-4 h-4" strokeWidth={2} />
+          </button>
+          <button
+            onClick={handleLogout}
+            className="p-1.5 rounded-lg text-stone-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors"
+            title="Sign out"
+          >
+            <LogOut className="w-4 h-4" strokeWidth={2} />
+          </button>
+        </div>
       </div>
 
       {/* Notes list */}

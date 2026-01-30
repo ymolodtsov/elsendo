@@ -1,3 +1,9 @@
+export interface User {
+  id: string;
+  email: string;
+  created_at: string;
+}
+
 export interface Note {
   id: string;
   title: string | null;
@@ -5,6 +11,7 @@ export interface Note {
   created_at: string;
   updated_at: string;
   is_deleted: boolean;
+  user_id: string;
 }
 
 export interface SharedNote {
@@ -13,6 +20,7 @@ export interface SharedNote {
   share_token: string;
   created_at: string;
   is_active: boolean;
+  user_id: string;
 }
 
 export interface NoteInsert {

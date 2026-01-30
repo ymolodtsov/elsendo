@@ -2,19 +2,28 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { Note, NoteInsert, NoteUpdate } from '../types';
 import { nanoid } from 'nanoid';
+import { useAuth } from '../contexts/AuthContext';
 
 export const useNotes = () => {
+  const { user } = useAuth();
   const [notes, setNotes] = useState<Note[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   // Fetch all notes
   const getNotes = async () => {
+    if (!user) {
+      setNotes([]);
+      setLoading(false);
+      return [];
+    }
+
     try {
       setLoading(true);
       const { data, error } = await supabase
         .from('notes')
         .select('*')
+        .eq('user_id', user.id)
         .eq('is_deleted', false)
         .order('updated_at', { ascending: false });
 
@@ -33,11 +42,14 @@ export const useNotes = () => {
 
   // Fetch a single note by ID
   const getNote = async (id: string): Promise<Note | null> => {
+    if (!user) return null;
+
     try {
       const { data, error } = await supabase
         .from('notes')
         .select('*')
         .eq('id', id)
+        .eq('user_id', user.id)
         .eq('is_deleted', false)
         .single();
 
@@ -53,10 +65,12 @@ export const useNotes = () => {
 
   // Create a new note
   const createNote = async (noteData: NoteInsert): Promise<Note | null> => {
+    if (!user) return null;
+
     try {
       const { data, error } = await supabase
         .from('notes')
-        .insert([noteData])
+        .insert([{ ...noteData, user_id: user.id }])
         .select()
         .single();
 
@@ -75,11 +89,14 @@ export const useNotes = () => {
 
   // Update an existing note
   const updateNote = async (id: string, updates: NoteUpdate): Promise<Note | null> => {
+    if (!user) return null;
+
     try {
       const { data, error } = await supabase
         .from('notes')
         .update({ ...updates, updated_at: new Date().toISOString() })
         .eq('id', id)
+        .eq('user_id', user.id)
         .select()
         .single();
 
@@ -100,11 +117,14 @@ export const useNotes = () => {
 
   // Soft delete a note
   const deleteNote = async (id: string): Promise<boolean> => {
+    if (!user) return false;
+
     try {
       const { error } = await supabase
         .from('notes')
         .update({ is_deleted: true })
-        .eq('id', id);
+        .eq('id', id)
+        .eq('user_id', user.id);
 
       if (error) throw error;
 
@@ -121,6 +141,8 @@ export const useNotes = () => {
 
   // Create a share link for a note
   const createShareLink = async (noteId: string): Promise<string | null> => {
+    if (!user) return null;
+
     try {
       const shareToken = nanoid(21);
 
@@ -129,7 +151,8 @@ export const useNotes = () => {
         .insert([{
           note_id: noteId,
           share_token: shareToken,
-          is_active: true
+          is_active: true,
+          user_id: user.id
         }]);
 
       if (error) throw error;
@@ -173,10 +196,15 @@ export const useNotes = () => {
     }
   };
 
-  // Load notes on mount
+  // Load notes on mount and when user changes
   useEffect(() => {
-    getNotes();
-  }, []);
+    if (user) {
+      getNotes();
+    } else {
+      setNotes([]);
+      setLoading(false);
+    }
+  }, [user]);
 
   return {
     notes,
