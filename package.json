@@ -16,6 +16,8 @@
     "@tiptap/extension-underline": "^2.2.4",
     "@tiptap/react": "^2.2.4",
     "@tiptap/starter-kit": "^2.2.4",
+    "@vercel/node": "^5.5.28",
+    "@vercel/og": "^0.8.6",
     "clsx": "^2.1.0",
     "date-fns": "^4.1.0",
     "lucide-react": "^0.344.0",

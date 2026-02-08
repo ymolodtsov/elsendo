@@ -241,9 +241,11 @@ export const Toolbar: React.FC<ToolbarProps> = ({ editor, noteId }) => {
     label: string;
   }) => (
     <button
+      type="button"
+      onMouseDown={(e) => e.preventDefault()}
       onClick={onClick}
       className={cn(
-        "p-2.5 rounded-xl transition-all duration-200 flex items-center justify-center active:scale-95",
+        "p-1.5 sm:p-2.5 rounded-lg sm:rounded-xl transition-all duration-200 flex items-center justify-center active:scale-95",
         isActive
           ? "bg-stone-200 dark:bg-stone-700 text-stone-800 dark:text-stone-200"
           : "text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-200 hover:bg-stone-100 dark:hover:bg-stone-700"
@@ -251,7 +253,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({ editor, noteId }) => {
       title={label}
       aria-label={label}
     >
-      <Icon className="w-[18px] h-[18px]" strokeWidth={2} />
+      <Icon className="w-4 h-4 sm:w-[18px] sm:h-[18px]" strokeWidth={2} />
     </button>
   );
 
@@ -261,7 +263,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({ editor, noteId }) => {
 
   return (
     <>
-      <div className="flex items-center gap-0.5 p-2 bg-white/95 dark:bg-stone-800/95 backdrop-blur-md border border-stone-200/80 dark:border-stone-700/80 shadow-lg rounded-2xl transition-colors duration-200">
+      <div className="flex items-center gap-0 sm:gap-0.5 p-1.5 sm:p-2 bg-white/95 dark:bg-stone-800/95 backdrop-blur-md border border-stone-200/80 dark:border-stone-700/80 shadow-lg rounded-xl sm:rounded-2xl transition-colors duration-200">
 
         <ToolbarButton
           onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}

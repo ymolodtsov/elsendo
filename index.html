@@ -4,7 +4,30 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Elsendo</title>
+    <meta name="description" content="A minimalist note-taking app for capturing your thoughts" />
+
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Elsendo" />
+    <meta property="og:description" content="A minimalist note-taking app for capturing your thoughts" />
+    <meta property="og:image" content="/api/og-image" />
+
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Elsendo" />
+    <meta name="twitter:description" content="A minimalist note-taking app for capturing your thoughts" />
+    <meta name="twitter:image" content="/api/og-image" />
+
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='45' fill='%2344403c'/%3E%3Ctext x='50' y='65' text-anchor='middle' fill='%23fafaf9' font-family='system-ui,sans-serif' font-size='45' font-weight='bold'%3EE%3C/text%3E%3C/svg%3E" />
+
+    <!-- PWA -->
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="theme-color" content="#fafaf9" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#1c1917" media="(prefers-color-scheme: dark)" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="Elsendo" />
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
   </head>
   <body class="bg-stone-50 text-stone-900 dark:bg-stone-900 dark:text-stone-200 transition-colors duration-300">
     <div id="root"></div>

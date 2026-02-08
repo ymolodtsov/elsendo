@@ -112,7 +112,7 @@ const AuthenticatedApp: React.FC = () => {
       </main>
 
       {/* Floating controls */}
-      <div className="fixed top-6 left-6 z-50" ref={panelRef}>
+      <div className="fixed top-4 left-4 sm:top-6 sm:left-6 z-50" ref={panelRef}>
         <button
           onClick={() => setIsNotesOpen(!isNotesOpen)}
           className={`p-3 backdrop-blur-sm rounded-full shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105 active:scale-95 ${
@@ -143,7 +143,7 @@ const AuthenticatedApp: React.FC = () => {
 
       <button
         onClick={handleNewNote}
-        className="fixed top-6 right-6 z-50 p-3 bg-stone-800 hover:bg-stone-700 text-white rounded-full shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105 active:scale-95"
+        className="fixed top-4 right-4 sm:top-6 sm:right-6 z-50 p-3 bg-stone-800 hover:bg-stone-700 text-white rounded-full shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105 active:scale-95"
         aria-label="New note"
         title="New note"
       >
@@ -199,7 +199,7 @@ const EditorRoute: React.FC = () => {
   }
 
   return (
-    <div className="w-full max-w-3xl mx-auto px-8 pt-12 pb-48 transition-all duration-300">
+    <div className="w-full max-w-3xl mx-auto px-4 sm:px-8 pt-8 sm:pt-12 pb-48 transition-all duration-300">
       <Editor noteId={noteId} />
     </div>
   );

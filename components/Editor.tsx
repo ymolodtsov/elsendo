@@ -119,7 +119,7 @@ export const Editor: React.FC<EditorProps> = ({ noteId, isShared = false }) => {
       </div>
 
       {!isShared && (
-        <div className="fixed bottom-8 left-0 right-0 flex flex-col items-center justify-center pointer-events-none z-50">
+        <div className="fixed bottom-4 sm:bottom-8 left-0 right-0 flex flex-col items-center justify-center pointer-events-none z-50">
           {/* Save status indicator */}
           <div
             className={`
