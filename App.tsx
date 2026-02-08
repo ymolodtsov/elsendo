@@ -199,7 +199,7 @@ const EditorRoute: React.FC = () => {
   }
 
   return (
-    <div className="w-full max-w-3xl mx-auto px-4 sm:px-8 pt-8 sm:pt-12 pb-48 transition-all duration-300">
+    <div className="w-full max-w-3xl mx-auto px-4 sm:px-8 pt-16 sm:pt-12 pb-48 transition-all duration-300">
       <Editor noteId={noteId} />
     </div>
   );
