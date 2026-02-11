@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate, useParams, useNavigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useParams, useNavigate, useLocation } from 'react-router-dom';
 import { Editor } from './components/Editor';
 import { NotesPanel } from './src/components/NotesPanel';
 import { useNotes } from './src/hooks/useNotes';
@@ -12,6 +12,7 @@ const AuthenticatedApp: React.FC = () => {
   const [showMigrationToast, setShowMigrationToast] = useState(false);
   const { notes, loading, createNote, deleteNote, getNotes } = useNotes();
   const navigate = useNavigate();
+  const location = useLocation();
   const panelRef = useRef<HTMLDivElement>(null);
 
   // Migrate localStorage content from Flow to Elsendo
@@ -93,8 +94,22 @@ const AuthenticatedApp: React.FC = () => {
   };
 
   const handleDeleteNote = async (id: string) => {
+    // Check if we're deleting the currently viewed note
+    const currentNoteId = location.pathname.match(/\/note\/(.+)/)?.[1];
+    const isCurrentNote = currentNoteId === id;
+
     await deleteNote(id);
     await getNotes();
+
+    // If we deleted the current note, navigate to another one
+    if (isCurrentNote) {
+      const remainingNotes = notes.filter(n => n.id !== id);
+      if (remainingNotes.length > 0) {
+        navigate(`/note/${remainingNotes[0].id}`);
+      } else {
+        navigate('/');
+      }
+    }
   };
 
   const handleSelectNote = (id: string) => {
