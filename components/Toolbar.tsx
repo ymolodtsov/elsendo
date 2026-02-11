@@ -7,6 +7,7 @@ import {
   Heading1,
   Heading2,
   List,
+  ListTodo,
   Link as LinkIcon,
   Unlink,
   X,
@@ -191,11 +192,22 @@ export const Toolbar: React.FC<ToolbarProps> = ({ editor, noteId }) => {
         case 'EM':
         case 'I': return `*${children}*`;
         case 'U': return `<u>${children}</u>`;
-        case 'UL': return `\n${children}\n`;
+        case 'UL': {
+          const element = node as HTMLElement;
+          const isTaskList = element.getAttribute('data-type') === 'taskList';
+          return `\n${children}\n`;
+        }
         case 'OL': return `\n${children}\n`;
         case 'LI': {
           const parent = node.parentNode as HTMLElement;
+          const element = node as HTMLElement;
+          const isTaskList = parent && parent.getAttribute('data-type') === 'taskList';
           const isOrdered = parent && parent.tagName === 'OL';
+
+          if (isTaskList) {
+            const isChecked = element.getAttribute('data-checked') === 'true';
+            return `- [${isChecked ? 'x' : ' '}] ${children}\n`;
+          }
           if (isOrdered) {
              const index = Array.from(parent.children).indexOf(node as Element) + 1;
              return `${index}. ${children}\n`;
@@ -309,6 +321,13 @@ export const Toolbar: React.FC<ToolbarProps> = ({ editor, noteId }) => {
           isActive={editor.isActive('bulletList')}
           icon={List}
           label="Bullet List"
+        />
+
+        <ToolbarButton
+          onClick={() => editor.chain().focus().toggleTaskList().run()}
+          isActive={editor.isActive('taskList')}
+          icon={ListTodo}
+          label="Task List"
         />
 
         {editor.isActive('link') ? (

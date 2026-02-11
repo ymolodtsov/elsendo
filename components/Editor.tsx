@@ -4,6 +4,8 @@ import StarterKit from '@tiptap/starter-kit';
 import Link from '@tiptap/extension-link';
 import Underline from '@tiptap/extension-underline';
 import Placeholder from '@tiptap/extension-placeholder';
+import TaskList from '@tiptap/extension-task-list';
+import TaskItem from '@tiptap/extension-task-item';
 import { markInputRule } from '@tiptap/core';
 import { Toolbar } from './Toolbar';
 import { useNotes } from '../src/hooks/useNotes';
@@ -57,6 +59,17 @@ export const Editor: React.FC<EditorProps> = ({ noteId, isShared = false }) => {
         autolink: true,
       }),
       Underline,
+      TaskList.configure({
+        HTMLAttributes: {
+          class: 'task-list not-prose',
+        },
+      }),
+      TaskItem.configure({
+        nested: true,
+        HTMLAttributes: {
+          class: 'task-list-item',
+        },
+      }),
       Placeholder.configure({
         placeholder: 'Start writing your thoughts...',
       }),
