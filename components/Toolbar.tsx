@@ -254,8 +254,11 @@ export const Toolbar: React.FC<ToolbarProps> = ({ editor, noteId }) => {
   }) => (
     <button
       type="button"
-      onMouseDown={(e) => e.preventDefault()}
-      onClick={onClick}
+      tabIndex={-1}
+      onMouseDown={(e) => {
+        e.preventDefault();
+        onClick();
+      }}
       className={cn(
         "p-1.5 sm:p-2.5 rounded-lg sm:rounded-xl transition-all duration-200 flex items-center justify-center active:scale-95",
         isActive
