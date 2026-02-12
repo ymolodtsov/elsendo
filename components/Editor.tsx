@@ -76,7 +76,7 @@ export const Editor: React.FC<EditorProps> = ({ noteId, isShared = false }) => {
     ],
     editorProps: {
       attributes: {
-        class: 'prose prose-lg max-w-none focus:outline-none min-h-[60vh] leading-relaxed transition-colors duration-200 [&_li]:!my-1 [&_li>p]:!m-0 [&_li>ul]:!m-0 [&_li>ol]:!m-0 prose-headings:text-stone-800 dark:prose-headings:text-stone-100 prose-p:text-stone-700 dark:prose-p:text-stone-200 prose-a:text-stone-700 prose-a:underline hover:prose-a:text-stone-800 prose-strong:text-stone-800 dark:prose-strong:text-stone-100 prose-ul:text-stone-700 dark:prose-ul:text-stone-200 prose-ol:text-stone-700 dark:prose-ol:text-stone-200',
+        class: 'prose prose-lg max-w-none focus:outline-none min-h-[60vh] leading-relaxed transition-colors duration-200 [&_li]:!my-1 [&_li>p]:!m-0 [&_li>ul]:!m-0 [&_li>ol]:!m-0 prose-headings:text-stone-800 dark:prose-headings:text-stone-100 prose-p:text-stone-700 dark:prose-p:text-stone-200 prose-a:text-stone-700 dark:prose-a:text-stone-300 prose-a:underline hover:prose-a:text-stone-800 dark:hover:prose-a:text-stone-200 prose-strong:text-stone-800 dark:prose-strong:text-stone-100 prose-ul:text-stone-700 dark:prose-ul:text-stone-200 prose-ol:text-stone-700 dark:prose-ol:text-stone-200',
       },
     },
     editable: !isShared,
