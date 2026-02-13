@@ -115,12 +115,7 @@ body {
 /* Links inside task list items */
 .ProseMirror .task-list-item a {
   text-decoration: underline !important;
-  text-decoration-color: #a8a29e !important;
   text-underline-offset: 2px;
-}
-
-.ProseMirror .task-list-item a:hover {
-  text-decoration-color: #44403c !important;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -141,11 +136,4 @@ body {
     border-color: #78716c;
   }
 
-  .ProseMirror .task-list-item a {
-    text-decoration-color: #78716c !important;
-  }
-
-  .ProseMirror .task-list-item a:hover {
-    text-decoration-color: #a8a29e !important;
-  }
 }
