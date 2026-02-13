@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Editor } from '@tiptap/react';
 import {
   Bold,
@@ -112,6 +112,27 @@ export const Toolbar: React.FC<ToolbarProps> = ({ editor, noteId }) => {
   const [shareUrl, setShareUrl] = useState('');
   const { createShareLink } = useNotes();
 
+  // Track the last known selection - updated on every selection change
+  const lastSelectionRef = useRef<{ from: number; to: number } | null>(null);
+
+  useEffect(() => {
+    if (!editor) return;
+
+    const updateSelection = () => {
+      const { from, to } = editor.state.selection;
+      lastSelectionRef.current = { from, to };
+    };
+
+    // Update on selection changes
+    editor.on('selectionUpdate', updateSelection);
+    // Also capture initial selection
+    updateSelection();
+
+    return () => {
+      editor.off('selectionUpdate', updateSelection);
+    };
+  }, [editor]);
+
   if (!editor) {
     return null;
   }
@@ -128,7 +149,10 @@ export const Toolbar: React.FC<ToolbarProps> = ({ editor, noteId }) => {
   };
 
   const openLinkModal = () => {
-    const { from, to } = editor.state.selection;
+    // Use the last tracked selection (captured before toolbar click could clear it)
+    const selection = lastSelectionRef.current || editor.state.selection;
+    const { from, to } = selection;
+
     setSavedSelection({ from, to });
 
     const previousUrl = editor.getAttributes('link').href;

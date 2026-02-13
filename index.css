@@ -112,6 +112,17 @@ body {
   text-decoration: line-through;
 }
 
+/* Links inside task list items */
+.ProseMirror .task-list-item a {
+  text-decoration: underline !important;
+  text-decoration-color: #a8a29e !important;
+  text-underline-offset: 2px;
+}
+
+.ProseMirror .task-list-item a:hover {
+  text-decoration-color: #44403c !important;
+}
+
 @media (prefers-color-scheme: dark) {
   .task-list-item {
     color: #d6d3d1;
@@ -128,5 +139,13 @@ body {
   .task-list-item > label input[type="checkbox"]:checked {
     background-color: #78716c;
     border-color: #78716c;
+  }
+
+  .ProseMirror .task-list-item a {
+    text-decoration-color: #78716c !important;
+  }
+
+  .ProseMirror .task-list-item a:hover {
+    text-decoration-color: #a8a29e !important;
   }
 }
