@@ -51,7 +51,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const description = stripHtml(note.content || '') || 'A note shared via Elsendo';
     const baseUrl = `https://${req.headers.host}`;
     const noteUrl = `${baseUrl}/shared/${token}`;
-    const ogImageUrl = `${baseUrl}/api/og-image/${token}`;
+    const ogImageUrl = `${baseUrl}/icons/og-image.png`;
 
     // Return HTML with OG metadata that redirects to the actual note
     const html = `<!DOCTYPE html>
