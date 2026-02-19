@@ -8,7 +8,7 @@ import TaskList from '@tiptap/extension-task-list';
 import TaskItem from '@tiptap/extension-task-item';
 import { markInputRule } from '@tiptap/core';
 import { Toolbar } from './Toolbar';
-import { useNotes } from '../src/hooks/useNotes';
+import { useNotes } from '../src/contexts/NotesContext';
 import { useAutoSave } from '../src/hooks/useAutoSave';
 
 interface EditorProps {

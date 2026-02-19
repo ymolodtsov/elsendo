@@ -18,7 +18,7 @@ import {
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { ShareModal } from '../src/components/ShareModal';
-import { useNotes } from '../src/hooks/useNotes';
+import { useNotes } from '../src/contexts/NotesContext';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));

@@ -2,8 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useParams, useNavigate, useLocation } from 'react-router-dom';
 import { Editor } from './components/Editor';
 import { NotesPanel } from './src/components/NotesPanel';
-import { useNotes } from './src/hooks/useNotes';
 import { AuthProvider, useAuth } from './src/contexts/AuthContext';
+import { NotesProvider, useNotes } from './src/contexts/NotesContext';
 import { LoginForm } from './src/components/LoginForm';
 import { Feather, Plus, FileText, X, Loader2 } from 'lucide-react';
 
@@ -264,10 +264,12 @@ const AppWithRouter: React.FC = () => {
   return (
     <Router>
       <AuthProvider>
-        <Routes>
-          <Route path="/shared/:token" element={<SharedNoteView />} />
-          <Route path="/*" element={<App />} />
-        </Routes>
+        <NotesProvider>
+          <Routes>
+            <Route path="/shared/:token" element={<SharedNoteView />} />
+            <Route path="/*" element={<App />} />
+          </Routes>
+        </NotesProvider>
       </AuthProvider>
     </Router>
   );
