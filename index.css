@@ -43,6 +43,12 @@ body {
   background-color: rgba(68, 64, 60, 0.2);
 }
 
+@media (prefers-color-scheme: dark) {
+  ::selection {
+    background-color: rgba(168, 162, 158, 0.35);
+  }
+}
+
 /* ============================================
    Task list styles
    ============================================ */
