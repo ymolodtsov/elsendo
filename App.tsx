@@ -133,7 +133,7 @@ const AuthenticatedApp: React.FC = () => {
           className={`p-3 backdrop-blur-sm rounded-full shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105 active:scale-95 ${
             isNotesOpen
               ? 'bg-stone-800 text-white'
-              : 'bg-white/90 dark:bg-stone-800/90 text-stone-500 hover:text-stone-700 dark:text-stone-400 dark:hover:text-stone-200'
+              : 'bg-white/90 dark:bg-stone-800/90 text-stone-500 hover:text-stone-700 hover:bg-white dark:text-stone-400 dark:hover:text-stone-200 dark:hover:bg-stone-700/90'
           }`}
           aria-label={isNotesOpen ? 'Close notes' : 'Open notes'}
           title="Notes (Cmd+Shift+F)"
