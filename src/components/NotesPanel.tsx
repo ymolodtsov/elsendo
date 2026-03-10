@@ -2,8 +2,9 @@ import React from 'react';
 import { useParams } from 'react-router-dom';
 import { Note } from '../types';
 import { formatDistanceToNow } from 'date-fns';
-import { Trash2, Plus, LogOut } from 'lucide-react';
+import { Trash2, Plus, LogOut, Archive, ArchiveRestore, ArrowLeft } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { useNotes } from '../contexts/NotesContext';
 
 interface NotesPanelProps {
   notes: Note[];
@@ -20,6 +21,16 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({
 }) => {
   const { noteId } = useParams();
   const { signOut } = useAuth();
+  const { archivedNotes, showArchive, setShowArchive, archiveNote, unarchiveNote, getArchivedNotes } = useNotes();
+
+  const displayedNotes = showArchive ? archivedNotes : notes;
+
+  const handleArchiveClick = async () => {
+    if (!showArchive) {
+      await getArchivedNotes();
+    }
+    setShowArchive(!showArchive);
+  };
 
   const handleLogout = async () => {
     if (window.confirm('Sign out of Elsendo?')) {
@@ -52,16 +63,41 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({
       {/* Header */}
       <div className="px-4 py-3 border-b border-stone-100 dark:border-stone-700/50 flex items-center justify-between">
         <span className="text-sm font-medium text-stone-600 dark:text-stone-300">
-          {notes.length} {notes.length === 1 ? 'note' : 'notes'}
+          {showArchive ? (
+            <>{archivedNotes.length} archived</>
+          ) : (
+            <>{notes.length} {notes.length === 1 ? 'note' : 'notes'}</>
+          )}
         </span>
         <div className="flex items-center gap-1">
-          <button
-            onClick={onNewNote}
-            className="p-1.5 rounded-lg text-stone-400 hover:text-stone-600 dark:hover:text-stone-200 hover:bg-stone-100 dark:hover:bg-stone-700 transition-colors"
-            aria-label="New note"
-          >
-            <Plus className="w-4 h-4" strokeWidth={2} />
-          </button>
+          {showArchive ? (
+            <button
+              onClick={handleArchiveClick}
+              className="p-1.5 rounded-lg text-stone-400 hover:text-stone-600 dark:hover:text-stone-200 hover:bg-stone-100 dark:hover:bg-stone-700 transition-colors"
+              aria-label="Back to notes"
+              title="Back to notes"
+            >
+              <ArrowLeft className="w-4 h-4" strokeWidth={2} />
+            </button>
+          ) : (
+            <>
+              <button
+                onClick={onNewNote}
+                className="p-1.5 rounded-lg text-stone-400 hover:text-stone-600 dark:hover:text-stone-200 hover:bg-stone-100 dark:hover:bg-stone-700 transition-colors"
+                aria-label="New note"
+              >
+                <Plus className="w-4 h-4" strokeWidth={2} />
+              </button>
+              <button
+                onClick={handleArchiveClick}
+                className="p-1.5 rounded-lg text-stone-400 hover:text-stone-600 dark:hover:text-stone-200 hover:bg-stone-100 dark:hover:bg-stone-700 transition-colors"
+                aria-label="View archive"
+                title="View archive"
+              >
+                <Archive className="w-4 h-4" strokeWidth={2} />
+              </button>
+            </>
+          )}
           <button
             onClick={handleLogout}
             className="p-1.5 rounded-lg text-stone-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors"
@@ -73,16 +109,27 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({
       </div>
 
       {/* Notes list */}
-      <div className="max-h-80 overflow-y-auto">
-        {notes.length === 0 ? (
+      <div className="max-h-96 overflow-y-auto">
+        {displayedNotes.length === 0 ? (
           <div className="px-4 py-8 text-center">
-            <p className="text-stone-400 dark:text-stone-500 text-sm">No notes yet</p>
+            <p className="text-stone-400 dark:text-stone-500 text-sm">
+              {showArchive ? 'No archived notes' : 'No notes yet'}
+            </p>
           </div>
         ) : (
           <div className="py-2">
-            {notes.map((note) => {
+            {displayedNotes.map((note) => {
               const title = extractTitle(note);
               const isActive = note.id === noteId;
+
+              const handleArchive = async (e: React.MouseEvent) => {
+                e.stopPropagation();
+                if (showArchive) {
+                  await unarchiveNote(note.id);
+                } else {
+                  await archiveNote(note.id);
+                }
+              };
 
               return (
                 <div
@@ -115,13 +162,27 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({
                       </p>
                     </div>
 
-                    <button
-                      onClick={(e) => handleDelete(e, note.id)}
-                      className="p-1 rounded opacity-0 group-hover:opacity-100 hover:bg-red-50 dark:hover:bg-red-900/30 text-stone-400 hover:text-red-500 dark:hover:text-red-400 transition-all"
-                      aria-label="Delete note"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" strokeWidth={2} />
-                    </button>
+                    <div className="flex items-center gap-0.5">
+                      <button
+                        onClick={handleArchive}
+                        className="p-1 rounded opacity-0 group-hover:opacity-100 hover:bg-stone-100 dark:hover:bg-stone-600 text-stone-400 hover:text-stone-600 dark:hover:text-stone-200 transition-all"
+                        aria-label={showArchive ? 'Unarchive note' : 'Archive note'}
+                        title={showArchive ? 'Unarchive' : 'Archive'}
+                      >
+                        {showArchive ? (
+                          <ArchiveRestore className="w-3.5 h-3.5" strokeWidth={2} />
+                        ) : (
+                          <Archive className="w-3.5 h-3.5" strokeWidth={2} />
+                        )}
+                      </button>
+                      <button
+                        onClick={(e) => handleDelete(e, note.id)}
+                        className="p-1 rounded opacity-0 group-hover:opacity-100 hover:bg-red-50 dark:hover:bg-red-900/30 text-stone-400 hover:text-red-500 dark:hover:text-red-400 transition-all"
+                        aria-label="Delete note"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" strokeWidth={2} />
+                      </button>
+                    </div>
                   </div>
                 </div>
               );

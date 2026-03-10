@@ -6,13 +6,19 @@ import { useAuth } from './AuthContext';
 
 interface NotesContextType {
   notes: Note[];
+  archivedNotes: Note[];
+  showArchive: boolean;
+  setShowArchive: (show: boolean) => void;
   loading: boolean;
   error: string | null;
   getNotes: () => Promise<Note[]>;
+  getArchivedNotes: () => Promise<Note[]>;
   getNote: (id: string) => Promise<Note | null>;
   createNote: (noteData: NoteInsert) => Promise<Note | null>;
   updateNote: (id: string, updates: NoteUpdate) => Promise<Note | null>;
   deleteNote: (id: string) => Promise<boolean>;
+  archiveNote: (id: string) => Promise<boolean>;
+  unarchiveNote: (id: string) => Promise<boolean>;
   createShareLink: (noteId: string) => Promise<string | null>;
   getNoteByShareToken: (shareToken: string) => Promise<Note | null>;
 }
@@ -22,6 +28,8 @@ const NotesContext = createContext<NotesContextType | undefined>(undefined);
 export const NotesProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user } = useAuth();
   const [notes, setNotes] = useState<Note[]>([]);
+  const [archivedNotes, setArchivedNotes] = useState<Note[]>([]);
+  const [showArchive, setShowArchive] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -40,6 +48,7 @@ export const NotesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         .select('*')
         .eq('user_id', user.id)
         .eq('is_deleted', false)
+        .eq('is_archived', false)
         .order('updated_at', { ascending: false });
 
       if (error) throw error;
@@ -52,6 +61,33 @@ export const NotesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       return [];
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Fetch archived notes
+  const getArchivedNotes = async () => {
+    if (!user) {
+      setArchivedNotes([]);
+      return [];
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('notes')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('is_deleted', false)
+        .eq('is_archived', true)
+        .order('updated_at', { ascending: false });
+
+      if (error) throw error;
+      setArchivedNotes(data || []);
+      return data || [];
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to fetch archived notes';
+      setError(errorMessage);
+      console.error('Error fetching archived notes:', err);
+      return [];
     }
   };
 
@@ -143,13 +179,68 @@ export const NotesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
       if (error) throw error;
 
-      // Update local state
+      // Update local state (remove from both lists)
       setNotes(prevNotes => prevNotes.filter(note => note.id !== id));
+      setArchivedNotes(prevNotes => prevNotes.filter(note => note.id !== id));
       return true;
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to delete note';
       setError(errorMessage);
       console.error('Error deleting note:', err);
+      return false;
+    }
+  };
+
+  // Archive a note
+  const archiveNote = async (id: string): Promise<boolean> => {
+    if (!user) return false;
+
+    try {
+      const { data, error } = await supabase
+        .from('notes')
+        .update({ is_archived: true })
+        .eq('id', id)
+        .eq('user_id', user.id)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      // Move from notes to archivedNotes
+      setNotes(prevNotes => prevNotes.filter(note => note.id !== id));
+      setArchivedNotes(prevNotes => [data, ...prevNotes]);
+      return true;
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to archive note';
+      setError(errorMessage);
+      console.error('Error archiving note:', err);
+      return false;
+    }
+  };
+
+  // Unarchive a note
+  const unarchiveNote = async (id: string): Promise<boolean> => {
+    if (!user) return false;
+
+    try {
+      const { data, error } = await supabase
+        .from('notes')
+        .update({ is_archived: false })
+        .eq('id', id)
+        .eq('user_id', user.id)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      // Move from archivedNotes to notes
+      setArchivedNotes(prevNotes => prevNotes.filter(note => note.id !== id));
+      setNotes(prevNotes => [data, ...prevNotes]);
+      return true;
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to unarchive note';
+      setError(errorMessage);
+      console.error('Error unarchiving note:', err);
       return false;
     }
   };
@@ -224,13 +315,19 @@ export const NotesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   return (
     <NotesContext.Provider value={{
       notes,
+      archivedNotes,
+      showArchive,
+      setShowArchive,
       loading,
       error,
       getNotes,
+      getArchivedNotes,
       getNote,
       createNote,
       updateNote,
       deleteNote,
+      archiveNote,
+      unarchiveNote,
       createShareLink,
       getNoteByShareToken,
     }}>
