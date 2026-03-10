@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Editor } from '@tiptap/react';
+import { findParentNode } from '@tiptap/core';
 import {
   Bold,
   Italic,
@@ -22,6 +23,57 @@ import { useNotes } from '../src/contexts/NotesContext';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
+}
+
+// Convert between list types while preserving structure
+function convertListType(editor: Editor, fromType: 'taskList' | 'bulletList', toType: 'taskList' | 'bulletList') {
+  const { state } = editor;
+  const { schema, selection, tr } = state;
+
+  // Find the parent list
+  const listNode = findParentNode(node => node.type.name === fromType)(selection);
+  if (!listNode) return false;
+
+  const fromListType = schema.nodes[fromType];
+  const toListType = schema.nodes[toType];
+  const fromItemType = fromType === 'taskList' ? schema.nodes.taskItem : schema.nodes.listItem;
+  const toItemType = toType === 'taskList' ? schema.nodes.taskItem : schema.nodes.listItem;
+
+  if (!toListType || !toItemType) return false;
+
+  // Recursively convert list items
+  const convertItems = (node: any): any => {
+    if (node.type === fromItemType) {
+      const newAttrs = toType === 'taskList' ? { checked: false } : {};
+      const newContent: any[] = [];
+
+      node.forEach((child: any) => {
+        if (child.type.name === fromType) {
+          // Nested list - convert it too
+          newContent.push(convertItems(child));
+        } else {
+          newContent.push(child);
+        }
+      });
+
+      return toItemType.create(newAttrs, newContent);
+    } else if (node.type === fromListType) {
+      const newItems: any[] = [];
+      node.forEach((child: any) => {
+        newItems.push(convertItems(child));
+      });
+      return toListType.create(null, newItems);
+    }
+    return node;
+  };
+
+  const newList = convertItems(listNode.node);
+
+  editor.view.dispatch(
+    tr.replaceWith(listNode.pos, listNode.pos + listNode.node.nodeSize, newList)
+  );
+
+  return true;
 }
 
 interface ToolbarProps {
@@ -344,14 +396,30 @@ export const Toolbar: React.FC<ToolbarProps> = ({ editor, noteId }) => {
         <Divider />
 
         <ToolbarButton
-          onClick={() => editor.chain().focus().toggleBulletList().run()}
+          onClick={() => {
+            if (editor.isActive('taskList')) {
+              // Convert task list to bullet list (preserves nesting)
+              convertListType(editor, 'taskList', 'bulletList');
+              editor.commands.focus();
+            } else {
+              editor.chain().focus().toggleBulletList().run();
+            }
+          }}
           isActive={editor.isActive('bulletList')}
           icon={List}
           label="Bullet List"
         />
 
         <ToolbarButton
-          onClick={() => editor.chain().focus().toggleTaskList().run()}
+          onClick={() => {
+            if (editor.isActive('bulletList')) {
+              // Convert bullet list to task list (preserves nesting)
+              convertListType(editor, 'bulletList', 'taskList');
+              editor.commands.focus();
+            } else {
+              editor.chain().focus().toggleTaskList().run();
+            }
+          }}
           isActive={editor.isActive('taskList')}
           icon={ListTodo}
           label="Task List"
