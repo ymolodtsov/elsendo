@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useImperativeHandle } from 'react';
 import { Editor } from '@tiptap/react';
 import { findParentNode } from '@tiptap/core';
 import {
@@ -25,54 +25,80 @@ function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-// Convert between list types while preserving structure
-function convertListType(editor: Editor, fromType: 'taskList' | 'bulletList', toType: 'taskList' | 'bulletList') {
+// Convert only the current list item to another list type
+function convertSingleItem(editor: Editor, fromType: 'taskList' | 'bulletList', toType: 'taskList' | 'bulletList') {
   const { state } = editor;
-  const { schema, selection, tr } = state;
+  const { schema, selection } = state;
+  let { tr } = state;
 
-  // Find the parent list
-  const listNode = findParentNode(node => node.type.name === fromType)(selection);
-  if (!listNode) return false;
-
-  const fromListType = schema.nodes[fromType];
   const toListType = schema.nodes[toType];
   const fromItemType = fromType === 'taskList' ? schema.nodes.taskItem : schema.nodes.listItem;
   const toItemType = toType === 'taskList' ? schema.nodes.taskItem : schema.nodes.listItem;
 
   if (!toListType || !toItemType) return false;
 
-  // Recursively convert list items
-  const convertItems = (node: any): any => {
-    if (node.type === fromItemType) {
-      const newAttrs = toType === 'taskList' ? { checked: false } : {};
-      const newContent: any[] = [];
+  // Find the current list item
+  const listItemResult = findParentNode(node => node.type === fromItemType)(selection);
+  if (!listItemResult) return false;
 
-      node.forEach((child: any) => {
-        if (child.type.name === fromType) {
-          // Nested list - convert it too
-          newContent.push(convertItems(child));
-        } else {
-          newContent.push(child);
-        }
-      });
+  // Find the parent list
+  const listResult = findParentNode(node => node.type.name === fromType)(selection);
+  if (!listResult) return false;
 
-      return toItemType.create(newAttrs, newContent);
-    } else if (node.type === fromListType) {
-      const newItems: any[] = [];
-      node.forEach((child: any) => {
-        newItems.push(convertItems(child));
-      });
-      return toListType.create(null, newItems);
+  const { node: listNode, pos: listPos } = listResult;
+  const { node: itemNode, pos: itemPos } = listItemResult;
+
+  // Find the index of current item in the list
+  let itemIndex = -1;
+  let currentPos = listPos + 1;
+  listNode.forEach((child: any, offset: number, index: number) => {
+    if (currentPos === itemPos) {
+      itemIndex = index;
     }
-    return node;
-  };
+    currentPos += child.nodeSize;
+  });
 
-  const newList = convertItems(listNode.node);
+  if (itemIndex === -1) return false;
 
-  editor.view.dispatch(
-    tr.replaceWith(listNode.pos, listNode.pos + listNode.node.nodeSize, newList)
-  );
+  // Convert the single item
+  const newAttrs = toType === 'taskList' ? { checked: false } : {};
+  const newItem = toItemType.create(newAttrs, itemNode.content);
+  const newList = toListType.create(null, [newItem]);
 
+  // Build the replacement: items before + converted item + items after
+  const fragments: any[] = [];
+  const fromListType = schema.nodes[fromType];
+
+  // Items before current
+  if (itemIndex > 0) {
+    const beforeItems: any[] = [];
+    listNode.forEach((child: any, _offset: number, index: number) => {
+      if (index < itemIndex) beforeItems.push(child);
+    });
+    if (beforeItems.length > 0) {
+      fragments.push(fromListType.create(null, beforeItems));
+    }
+  }
+
+  // The converted item
+  fragments.push(newList);
+
+  // Items after current
+  if (itemIndex < listNode.childCount - 1) {
+    const afterItems: any[] = [];
+    listNode.forEach((child: any, _offset: number, index: number) => {
+      if (index > itemIndex) afterItems.push(child);
+    });
+    if (afterItems.length > 0) {
+      fragments.push(fromListType.create(null, afterItems));
+    }
+  }
+
+  // Replace the entire list with the fragments
+  const fragment = schema.nodes.doc.create(null, fragments).content;
+  tr = tr.replaceWith(listPos, listPos + listNode.nodeSize, fragment);
+
+  editor.view.dispatch(tr);
   return true;
 }
 
@@ -156,7 +182,11 @@ const LinkModal = ({
   );
 };
 
-export const Toolbar: React.FC<ToolbarProps> = ({ editor, noteId }) => {
+export interface ToolbarHandle {
+  openLinkModal: () => void;
+}
+
+export const Toolbar = React.forwardRef<ToolbarHandle, ToolbarProps>(({ editor, noteId }, ref) => {
   const [isLinkModalOpen, setIsLinkModalOpen] = useState(false);
   const [currentLinkUrl, setCurrentLinkUrl] = useState('');
   const [savedSelection, setSavedSelection] = useState<{ from: number; to: number } | null>(null);
@@ -184,6 +214,19 @@ export const Toolbar: React.FC<ToolbarProps> = ({ editor, noteId }) => {
       editor.off('selectionUpdate', updateSelection);
     };
   }, [editor]);
+
+  // Expose openLinkModal to parent via ref
+  useImperativeHandle(ref, () => ({
+    openLinkModal: () => {
+      if (!editor) return;
+      const selection = lastSelectionRef.current || editor.state.selection;
+      const { from, to } = selection;
+      setSavedSelection({ from, to });
+      const previousUrl = editor.getAttributes('link').href;
+      setCurrentLinkUrl(previousUrl || '');
+      setIsLinkModalOpen(true);
+    }
+  }), [editor]);
 
   if (!editor) {
     return null;
@@ -398,8 +441,8 @@ export const Toolbar: React.FC<ToolbarProps> = ({ editor, noteId }) => {
         <ToolbarButton
           onClick={() => {
             if (editor.isActive('taskList')) {
-              // Convert task list to bullet list (preserves nesting)
-              convertListType(editor, 'taskList', 'bulletList');
+              // Convert just this task item to a bullet
+              convertSingleItem(editor, 'taskList', 'bulletList');
               editor.commands.focus();
             } else {
               editor.chain().focus().toggleBulletList().run();
@@ -413,8 +456,8 @@ export const Toolbar: React.FC<ToolbarProps> = ({ editor, noteId }) => {
         <ToolbarButton
           onClick={() => {
             if (editor.isActive('bulletList')) {
-              // Convert bullet list to task list (preserves nesting)
-              convertListType(editor, 'bulletList', 'taskList');
+              // Convert just this bullet to a task item
+              convertSingleItem(editor, 'bulletList', 'taskList');
               editor.commands.focus();
             } else {
               editor.chain().focus().toggleTaskList().run();
@@ -472,4 +515,4 @@ export const Toolbar: React.FC<ToolbarProps> = ({ editor, noteId }) => {
       />
     </>
   );
-};
+});

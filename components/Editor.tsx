@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Link from '@tiptap/extension-link';
@@ -7,7 +7,7 @@ import Placeholder from '@tiptap/extension-placeholder';
 import TaskList from '@tiptap/extension-task-list';
 import TaskItem from '@tiptap/extension-task-item';
 import { markInputRule } from '@tiptap/core';
-import { Toolbar } from './Toolbar';
+import { Toolbar, ToolbarHandle } from './Toolbar';
 import { useNotes } from '../src/contexts/NotesContext';
 import { useAutoSave } from '../src/hooks/useAutoSave';
 
@@ -19,6 +19,7 @@ interface EditorProps {
 export const Editor: React.FC<EditorProps> = ({ noteId, isShared = false }) => {
   const [isLoading, setIsLoading] = useState(true);
   const { getNote, updateNote, getNoteByShareToken } = useNotes();
+  const toolbarRef = useRef<ToolbarHandle>(null);
 
   const { save, isSaving, isSaved } = useAutoSave({
     onSave: async (content: string) => {
@@ -86,6 +87,36 @@ export const Editor: React.FC<EditorProps> = ({ noteId, isShared = false }) => {
       }
     },
   });
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    if (!editor || isShared) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      const isMod = event.metaKey || event.ctrlKey;
+
+      // Cmd/Ctrl + K: Open link modal
+      if (isMod && event.key === 'k') {
+        event.preventDefault();
+        toolbarRef.current?.openLinkModal();
+        return;
+      }
+
+      // Cmd/Ctrl + U: Toggle underline
+      if (isMod && event.key === 'u') {
+        event.preventDefault();
+        editor.chain().focus().toggleUnderline().run();
+        return;
+      }
+    };
+
+    const editorElement = editor.view.dom;
+    editorElement.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      editorElement.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [editor, isShared]);
 
   useEffect(() => {
     const loadNote = async () => {
@@ -156,7 +187,7 @@ export const Editor: React.FC<EditorProps> = ({ noteId, isShared = false }) => {
 
           {/* Toolbar */}
           <div className="pointer-events-auto">
-            <Toolbar editor={editor} noteId={noteId} />
+            <Toolbar ref={toolbarRef} editor={editor} noteId={noteId} />
           </div>
         </div>
       )}
