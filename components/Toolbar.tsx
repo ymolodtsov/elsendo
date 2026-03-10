@@ -14,7 +14,10 @@ import {
   X,
   Check,
   Download,
-  Share2
+  Share2,
+  Pencil,
+  ExternalLink,
+  Trash2
 } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -182,12 +185,101 @@ const LinkModal = ({
   );
 };
 
+const LinkMenu = ({
+  isOpen,
+  onClose,
+  onEdit,
+  onRemove,
+  onOpen,
+  url,
+  position
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  onEdit: () => void;
+  onRemove: () => void;
+  onOpen: () => void;
+  url: string;
+  position: { top: number; left: number };
+}) => {
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleClickOutside = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        onClose();
+      }
+    };
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isOpen, onClose]);
+
+  if (!isOpen) return null;
+
+  // Adjust position to stay within viewport
+  const adjustedLeft = Math.min(position.left, window.innerWidth - 220);
+  const adjustedTop = Math.min(position.top, window.innerHeight - 160);
+
+  return (
+    <div
+      ref={menuRef}
+      className="fixed z-[60] animate-scale-in"
+      style={{ top: adjustedTop, left: adjustedLeft }}
+    >
+      <div className="bg-white dark:bg-stone-800 rounded-xl shadow-xl border border-stone-200 dark:border-stone-700 overflow-hidden w-52">
+        <div className="px-3 py-2 border-b border-stone-100 dark:border-stone-700">
+          <p className="text-xs text-stone-400 dark:text-stone-500 truncate">{url}</p>
+        </div>
+        <div className="p-1">
+          <button
+            onClick={onOpen}
+            className="w-full px-3 py-2 text-sm text-left text-stone-700 dark:text-stone-200 hover:bg-stone-100 dark:hover:bg-stone-700 rounded-lg flex items-center gap-2 transition-colors"
+          >
+            <ExternalLink className="w-4 h-4" strokeWidth={2} />
+            Open Link
+          </button>
+          <button
+            onClick={onEdit}
+            className="w-full px-3 py-2 text-sm text-left text-stone-700 dark:text-stone-200 hover:bg-stone-100 dark:hover:bg-stone-700 rounded-lg flex items-center gap-2 transition-colors"
+          >
+            <Pencil className="w-4 h-4" strokeWidth={2} />
+            Edit Link
+          </button>
+          <button
+            onClick={onRemove}
+            className="w-full px-3 py-2 text-sm text-left text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg flex items-center gap-2 transition-colors"
+          >
+            <Trash2 className="w-4 h-4" strokeWidth={2} />
+            Remove Link
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 export interface ToolbarHandle {
   openLinkModal: () => void;
 }
 
 export const Toolbar = React.forwardRef<ToolbarHandle, ToolbarProps>(({ editor, noteId }, ref) => {
   const [isLinkModalOpen, setIsLinkModalOpen] = useState(false);
+  const [isLinkMenuOpen, setIsLinkMenuOpen] = useState(false);
+  const [linkMenuPosition, setLinkMenuPosition] = useState({ top: 0, left: 0 });
   const [currentLinkUrl, setCurrentLinkUrl] = useState('');
   const [savedSelection, setSavedSelection] = useState<{ from: number; to: number } | null>(null);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
@@ -224,7 +316,17 @@ export const Toolbar = React.forwardRef<ToolbarHandle, ToolbarProps>(({ editor, 
       setSavedSelection({ from, to });
       const previousUrl = editor.getAttributes('link').href;
       setCurrentLinkUrl(previousUrl || '');
-      setIsLinkModalOpen(true);
+
+      // If on a link, show the link menu instead
+      if (previousUrl) {
+        // Get cursor position in the DOM
+        const { view } = editor;
+        const coords = view.coordsAtPos(from);
+        setLinkMenuPosition({ top: coords.bottom + 8, left: coords.left });
+        setIsLinkMenuOpen(true);
+      } else {
+        setIsLinkModalOpen(true);
+      }
     }
   }), [editor]);
 
@@ -289,6 +391,41 @@ export const Toolbar = React.forwardRef<ToolbarHandle, ToolbarProps>(({ editor, 
 
   const removeLink = () => {
     editor.chain().focus().unsetLink().run();
+  };
+
+  const handleLinkMenuEdit = () => {
+    setIsLinkMenuOpen(false);
+    setIsLinkModalOpen(true);
+  };
+
+  const handleLinkMenuRemove = () => {
+    setIsLinkMenuOpen(false);
+    if (savedSelection) {
+      editor.commands.setTextSelection(savedSelection);
+    }
+    editor.chain().focus().extendMarkRange('link').unsetLink().run();
+    setSavedSelection(null);
+  };
+
+  const handleLinkMenuOpen = () => {
+    setIsLinkMenuOpen(false);
+    if (currentLinkUrl) {
+      window.open(currentLinkUrl, '_blank', 'noopener,noreferrer');
+    }
+    if (savedSelection) {
+      editor.commands.setTextSelection(savedSelection);
+      editor.commands.focus();
+    }
+    setSavedSelection(null);
+  };
+
+  const closeLinkMenu = () => {
+    setIsLinkMenuOpen(false);
+    if (savedSelection) {
+      editor.commands.setTextSelection(savedSelection);
+      editor.commands.focus();
+    }
+    setSavedSelection(null);
   };
 
   const downloadMarkdown = () => {
@@ -512,6 +649,16 @@ export const Toolbar = React.forwardRef<ToolbarHandle, ToolbarProps>(({ editor, 
         isOpen={isShareModalOpen}
         onClose={() => setIsShareModalOpen(false)}
         shareUrl={shareUrl}
+      />
+
+      <LinkMenu
+        isOpen={isLinkMenuOpen}
+        onClose={closeLinkMenu}
+        onEdit={handleLinkMenuEdit}
+        onRemove={handleLinkMenuRemove}
+        onOpen={handleLinkMenuOpen}
+        url={currentLinkUrl}
+        position={linkMenuPosition}
       />
     </>
   );
