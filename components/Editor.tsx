@@ -8,6 +8,7 @@ import TaskList from '@tiptap/extension-task-list';
 import TaskItem from '@tiptap/extension-task-item';
 import { markInputRule } from '@tiptap/core';
 import { Toolbar, ToolbarHandle } from './Toolbar';
+import { LinkPreviewOverlay } from './LinkPreview';
 import { useNotes } from '../src/contexts/NotesContext';
 import { useAutoSave } from '../src/hooks/useAutoSave';
 
@@ -20,6 +21,7 @@ export const Editor: React.FC<EditorProps> = ({ noteId, isShared = false }) => {
   const [isLoading, setIsLoading] = useState(true);
   const { getNote, updateNote, getNoteByShareToken } = useNotes();
   const toolbarRef = useRef<ToolbarHandle>(null);
+  const editorContainerRef = useRef<HTMLDivElement>(null);
 
   const { save, isSaving, isSaved } = useAutoSave({
     onSave: async (content: string) => {
@@ -158,8 +160,9 @@ export const Editor: React.FC<EditorProps> = ({ noteId, isShared = false }) => {
 
   return (
     <div className="relative w-full h-full flex flex-col animate-fade-in">
-      <div className="flex-1 py-4">
+      <div ref={editorContainerRef} className="flex-1 py-4">
         <EditorContent editor={editor} />
+        <LinkPreviewOverlay containerRef={editorContainerRef} />
       </div>
 
       {!isShared && (
