@@ -30,9 +30,24 @@ body {
 }
 
 .ProseMirror ul:not(.task-list) {
-  list-style-type: disc;
+  list-style-type: none;
   padding-left: 1.5em;
   margin: 0;
+}
+
+.ProseMirror ul:not(.task-list) > li {
+  position: relative;
+}
+
+.ProseMirror ul:not(.task-list) > li::before {
+  content: '';
+  position: absolute;
+  left: -1.5em;
+  top: 0.6em;
+  width: 5px;
+  height: 5px;
+  background-color: currentColor;
+  border-radius: 50%;
 }
 .ProseMirror ol {
   list-style-type: decimal;
@@ -98,6 +113,10 @@ body {
 .task-list-item > div {
   flex: 1;
   min-width: 0;
+}
+
+.task-list-item > div > p {
+  margin: 0;
 }
 
 .task-list-item > label input[type="checkbox"] {

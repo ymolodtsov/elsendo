@@ -62,7 +62,7 @@ export const Editor: React.FC<EditorProps> = ({ noteId, isShared = false }) => {
       Underline,
       TaskList.configure({
         HTMLAttributes: {
-          class: 'task-list not-prose',
+          class: 'task-list',
         },
       }),
       TaskItem.configure({
