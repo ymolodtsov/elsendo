@@ -32,10 +32,31 @@ body {
 .ProseMirror ul:not(.task-list) {
   list-style-type: disc;
   padding-left: 1.5em;
+  margin: 0;
 }
 .ProseMirror ol {
   list-style-type: decimal;
   padding-left: 1.5em;
+  margin: 0;
+}
+
+/* Remove gaps between adjacent lists of any type */
+.ProseMirror ul + ul,
+.ProseMirror ul + ol,
+.ProseMirror ul + .task-list,
+.ProseMirror ol + ul,
+.ProseMirror ol + ol,
+.ProseMirror ol + .task-list,
+.ProseMirror .task-list + ul,
+.ProseMirror .task-list + ol,
+.ProseMirror .task-list + .task-list {
+  margin-top: 0;
+}
+
+/* Consistent item spacing for all list types */
+.ProseMirror li,
+.ProseMirror .task-list-item {
+  margin: 0;
 }
 
 /* Selection highlight */
