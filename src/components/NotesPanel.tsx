@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { Note } from '../types';
 import { formatDistanceToNow } from 'date-fns';
@@ -24,6 +24,7 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({
   const { archivedNotes, showArchive, setShowArchive, archiveNote, unarchiveNote, getArchivedNotes } = useNotes();
 
   const displayedNotes = showArchive ? archivedNotes : notes;
+  const [animatingOut, setAnimatingOut] = useState<{ id: string; type: 'archive' | 'delete' } | null>(null);
 
   const handleArchiveClick = async () => {
     if (!showArchive) {
@@ -54,7 +55,11 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({
   const handleDelete = (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
     if (window.confirm('Delete this note?')) {
-      onDeleteNote(id);
+      setAnimatingOut({ id, type: 'delete' });
+      setTimeout(() => {
+        onDeleteNote(id);
+        setAnimatingOut(null);
+      }, 250);
     }
   };
 
@@ -122,14 +127,25 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({
               const title = extractTitle(note);
               const isActive = note.id === noteId;
 
-              const handleArchive = async (e: React.MouseEvent) => {
+              const handleArchive = (e: React.MouseEvent) => {
                 e.stopPropagation();
-                if (showArchive) {
-                  await unarchiveNote(note.id);
-                } else {
-                  await archiveNote(note.id);
-                }
+                setAnimatingOut({ id: note.id, type: 'archive' });
+                setTimeout(async () => {
+                  if (showArchive) {
+                    await unarchiveNote(note.id);
+                  } else {
+                    await archiveNote(note.id);
+                  }
+                  setAnimatingOut(null);
+                }, 250);
               };
+
+              const isAnimating = animatingOut?.id === note.id;
+              const animationClass = isAnimating
+                ? animatingOut.type === 'archive'
+                  ? 'animate-slide-out-left'
+                  : 'animate-slide-out-right'
+                : '';
 
               return (
                 <div
@@ -142,6 +158,7 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({
                       ? 'bg-stone-100 dark:bg-stone-700'
                       : 'hover:bg-stone-50 dark:hover:bg-stone-700/50'
                     }
+                    ${animationClass}
                   `}
                 >
                   <div className="flex items-center justify-between gap-2">
