@@ -202,9 +202,21 @@ const LinkMenu = ({
   position: { top: number; left: number };
 }) => {
   const menuRef = useRef<HTMLDivElement>(null);
+  const [focusedIndex, setFocusedIndex] = useState(0);
+  const buttonRefs = useRef<(HTMLButtonElement | null)[]>([]);
+
+  const actions = [
+    { label: 'Open Link', icon: ExternalLink, onClick: onOpen, isDestructive: false },
+    { label: 'Edit Link', icon: Pencil, onClick: onEdit, isDestructive: false },
+    { label: 'Remove Link', icon: Trash2, onClick: onRemove, isDestructive: true },
+  ];
 
   useEffect(() => {
     if (!isOpen) return;
+
+    // Reset and focus first item when menu opens
+    setFocusedIndex(0);
+    setTimeout(() => buttonRefs.current[0]?.focus(), 0);
 
     const handleClickOutside = (e: MouseEvent) => {
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
@@ -212,20 +224,36 @@ const LinkMenu = ({
       }
     };
 
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        onClose();
-      }
-    };
-
     document.addEventListener('mousedown', handleClickOutside);
-    document.addEventListener('keydown', handleKeyDown);
-
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-      document.removeEventListener('keydown', handleKeyDown);
-    };
+    return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [isOpen, onClose]);
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    switch (e.key) {
+      case 'ArrowDown':
+      case 'j':
+        e.preventDefault();
+        setFocusedIndex(i => {
+          const next = (i + 1) % actions.length;
+          buttonRefs.current[next]?.focus();
+          return next;
+        });
+        break;
+      case 'ArrowUp':
+      case 'k':
+        e.preventDefault();
+        setFocusedIndex(i => {
+          const prev = (i - 1 + actions.length) % actions.length;
+          buttonRefs.current[prev]?.focus();
+          return prev;
+        });
+        break;
+      case 'Escape':
+        e.preventDefault();
+        onClose();
+        break;
+    }
+  };
 
   if (!isOpen) return null;
 
@@ -238,33 +266,29 @@ const LinkMenu = ({
       ref={menuRef}
       className="fixed z-[60] animate-scale-in"
       style={{ top: adjustedTop, left: adjustedLeft }}
+      onKeyDown={handleKeyDown}
     >
       <div className="bg-white dark:bg-stone-800 rounded-xl shadow-xl border border-stone-200 dark:border-stone-700 overflow-hidden w-52">
         <div className="px-3 py-2 border-b border-stone-100 dark:border-stone-700">
           <p className="text-xs text-stone-400 dark:text-stone-500 truncate">{url}</p>
         </div>
         <div className="p-1">
-          <button
-            onClick={onOpen}
-            className="w-full px-3 py-2 text-sm text-left text-stone-700 dark:text-stone-200 hover:bg-stone-100 dark:hover:bg-stone-700 rounded-lg flex items-center gap-2 transition-colors"
-          >
-            <ExternalLink className="w-4 h-4" strokeWidth={2} />
-            Open Link
-          </button>
-          <button
-            onClick={onEdit}
-            className="w-full px-3 py-2 text-sm text-left text-stone-700 dark:text-stone-200 hover:bg-stone-100 dark:hover:bg-stone-700 rounded-lg flex items-center gap-2 transition-colors"
-          >
-            <Pencil className="w-4 h-4" strokeWidth={2} />
-            Edit Link
-          </button>
-          <button
-            onClick={onRemove}
-            className="w-full px-3 py-2 text-sm text-left text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg flex items-center gap-2 transition-colors"
-          >
-            <Trash2 className="w-4 h-4" strokeWidth={2} />
-            Remove Link
-          </button>
+          {actions.map((action, index) => (
+            <button
+              key={action.label}
+              ref={el => buttonRefs.current[index] = el}
+              onClick={action.onClick}
+              className={cn(
+                "w-full px-3 py-2 text-sm text-left rounded-lg flex items-center gap-2 transition-colors outline-none",
+                action.isDestructive
+                  ? "text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 focus:bg-red-50 dark:focus:bg-red-900/30"
+                  : "text-stone-700 dark:text-stone-200 hover:bg-stone-100 dark:hover:bg-stone-700 focus:bg-stone-100 dark:focus:bg-stone-700"
+              )}
+            >
+              <action.icon className="w-4 h-4" strokeWidth={2} />
+              {action.label}
+            </button>
+          ))}
         </div>
       </div>
     </div>
