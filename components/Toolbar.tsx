@@ -10,7 +10,6 @@ import {
   List,
   ListTodo,
   Link as LinkIcon,
-  Unlink,
   X,
   Check,
   Download,
@@ -307,27 +306,31 @@ export const Toolbar = React.forwardRef<ToolbarHandle, ToolbarProps>(({ editor, 
     };
   }, [editor]);
 
+  const openLinkModal = () => {
+    if (!editor) return;
+    // Use the last tracked selection (captured before toolbar click could clear it)
+    const selection = lastSelectionRef.current || editor.state.selection;
+    const { from, to } = selection;
+
+    setSavedSelection({ from, to });
+
+    const previousUrl = editor.getAttributes('link').href;
+    setCurrentLinkUrl(previousUrl || '');
+
+    // If on a link, show the link menu instead
+    if (editor.isActive('link') && previousUrl) {
+      const { view } = editor;
+      const coords = view.coordsAtPos(from);
+      setLinkMenuPosition({ top: coords.bottom + 8, left: coords.left });
+      setIsLinkMenuOpen(true);
+    } else {
+      setIsLinkModalOpen(true);
+    }
+  };
+
   // Expose openLinkModal to parent via ref
   useImperativeHandle(ref, () => ({
-    openLinkModal: () => {
-      if (!editor) return;
-      const selection = lastSelectionRef.current || editor.state.selection;
-      const { from, to } = selection;
-      setSavedSelection({ from, to });
-      const previousUrl = editor.getAttributes('link').href;
-      setCurrentLinkUrl(previousUrl || '');
-
-      // If on a link, show the link menu instead
-      if (previousUrl) {
-        // Get cursor position in the DOM
-        const { view } = editor;
-        const coords = view.coordsAtPos(from);
-        setLinkMenuPosition({ top: coords.bottom + 8, left: coords.left });
-        setIsLinkMenuOpen(true);
-      } else {
-        setIsLinkModalOpen(true);
-      }
-    }
+    openLinkModal
   }), [editor]);
 
   if (!editor) {
@@ -343,18 +346,6 @@ export const Toolbar = React.forwardRef<ToolbarHandle, ToolbarProps>(({ editor, 
       setShareUrl(url);
       setIsShareModalOpen(true);
     }
-  };
-
-  const openLinkModal = () => {
-    // Use the last tracked selection (captured before toolbar click could clear it)
-    const selection = lastSelectionRef.current || editor.state.selection;
-    const { from, to } = selection;
-
-    setSavedSelection({ from, to });
-
-    const previousUrl = editor.getAttributes('link').href;
-    setCurrentLinkUrl(previousUrl || '');
-    setIsLinkModalOpen(true);
   };
 
   const closeLinkModal = () => {
@@ -387,10 +378,6 @@ export const Toolbar = React.forwardRef<ToolbarHandle, ToolbarProps>(({ editor, 
     }
     setIsLinkModalOpen(false);
     setSavedSelection(null);
-  };
-
-  const removeLink = () => {
-    editor.chain().focus().unsetLink().run();
   };
 
   const handleLinkMenuEdit = () => {
@@ -605,21 +592,12 @@ export const Toolbar = React.forwardRef<ToolbarHandle, ToolbarProps>(({ editor, 
           label="Task List"
         />
 
-        {editor.isActive('link') ? (
-          <ToolbarButton
-            onClick={removeLink}
-            isActive={true}
-            icon={Unlink}
-            label="Remove Link"
-          />
-        ) : (
-          <ToolbarButton
-            onClick={openLinkModal}
-            isActive={false}
-            icon={LinkIcon}
-            label="Add Link"
-          />
-        )}
+        <ToolbarButton
+          onClick={openLinkModal}
+          isActive={editor.isActive('link')}
+          icon={LinkIcon}
+          label={editor.isActive('link') ? "Edit Link" : "Add Link"}
+        />
 
         <Divider />
 
