@@ -1,10 +1,25 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { Note } from '../types';
 import { formatDistanceToNow } from 'date-fns';
 import { Trash2, Plus, LogOut, Archive, ArchiveRestore, ArrowLeft } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNotes } from '../contexts/NotesContext';
+
+// Reusable DOMParser instance
+const domParser = new DOMParser();
+
+// Extract title from note content - memoized per note
+const extractTitleFromContent = (content: string): string => {
+  const doc = domParser.parseFromString(content, 'text/html');
+  const firstHeading = doc.querySelector('h1, h2')?.textContent;
+  if (firstHeading) return firstHeading.slice(0, 40);
+
+  const firstParagraph = doc.querySelector('p')?.textContent;
+  if (firstParagraph) return firstParagraph.slice(0, 40);
+
+  return 'Untitled';
+};
 
 interface NotesPanelProps {
   notes: Note[];
@@ -13,7 +28,7 @@ interface NotesPanelProps {
   onNewNote: () => void;
 }
 
-export const NotesPanel: React.FC<NotesPanelProps> = ({
+export const NotesPanel: React.FC<NotesPanelProps> = React.memo(({
   notes,
   onSelectNote,
   onDeleteNote,
@@ -22,46 +37,50 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({
   const { noteId } = useParams();
   const { signOut } = useAuth();
   const { archivedNotes, showArchive, setShowArchive, archiveNote, unarchiveNote, getArchivedNotes } = useNotes();
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const displayedNotes = showArchive ? archivedNotes : notes;
   const [animatingOut, setAnimatingOut] = useState<{ id: string; type: 'archive' | 'delete' } | null>(null);
 
-  const handleArchiveClick = async () => {
+  // Cleanup timeouts on unmount
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    };
+  }, []);
+
+  const handleArchiveClick = useCallback(async () => {
     if (!showArchive) {
       await getArchivedNotes();
     }
     setShowArchive(!showArchive);
-  };
+  }, [showArchive, getArchivedNotes, setShowArchive]);
 
-  const handleLogout = async () => {
+  const handleLogout = useCallback(async () => {
     if (window.confirm('Sign out of Elsendo?')) {
       await signOut();
     }
-  };
+  }, [signOut]);
 
-  const extractTitle = (note: Note): string => {
-    if (note.title) return note.title;
+  // Memoize title extraction for all displayed notes
+  const noteTitles = useMemo(() => {
+    const titles = new Map<string, string>();
+    for (const note of displayedNotes) {
+      titles.set(note.id, note.title || extractTitleFromContent(note.content));
+    }
+    return titles;
+  }, [displayedNotes]);
 
-    const doc = new DOMParser().parseFromString(note.content, 'text/html');
-    const firstHeading = doc.querySelector('h1, h2')?.textContent;
-    if (firstHeading) return firstHeading.slice(0, 40);
-
-    const firstParagraph = doc.querySelector('p')?.textContent;
-    if (firstParagraph) return firstParagraph.slice(0, 40);
-
-    return 'Untitled';
-  };
-
-  const handleDelete = (e: React.MouseEvent, id: string) => {
+  const handleDelete = useCallback((e: React.MouseEvent, id: string) => {
     e.stopPropagation();
     if (window.confirm('Delete this note?')) {
       setAnimatingOut({ id, type: 'delete' });
-      setTimeout(() => {
+      timeoutRef.current = setTimeout(() => {
         onDeleteNote(id);
         setAnimatingOut(null);
       }, 250);
     }
-  };
+  }, [onDeleteNote]);
 
   return (
     <div className="absolute top-14 left-0 w-72 bg-white dark:bg-stone-800 rounded-2xl shadow-2xl border border-stone-200/50 dark:border-stone-700/50 overflow-hidden animate-scale-in">
@@ -124,13 +143,13 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({
         ) : (
           <div className="py-2">
             {displayedNotes.map((note) => {
-              const title = extractTitle(note);
+              const title = noteTitles.get(note.id) || 'Untitled';
               const isActive = note.id === noteId;
 
               const handleArchive = (e: React.MouseEvent) => {
                 e.stopPropagation();
                 setAnimatingOut({ id: note.id, type: 'archive' });
-                setTimeout(async () => {
+                timeoutRef.current = setTimeout(async () => {
                   if (showArchive) {
                     await unarchiveNote(note.id);
                   } else {
@@ -209,4 +228,4 @@ export const NotesPanel: React.FC<NotesPanelProps> = ({
       </div>
     </div>
   );
-};
+});

@@ -1,8 +1,11 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '../lib/supabase';
 import { Note, NoteInsert, NoteUpdate } from '../types';
 import { nanoid } from 'nanoid';
 import { useAuth } from './AuthContext';
+
+// Share token validation: alphanumeric + dash/underscore, 32 chars
+const SHARE_TOKEN_REGEX = /^[A-Za-z0-9_-]{32}$/;
 
 interface NotesContextType {
   notes: Note[];
@@ -34,7 +37,7 @@ export const NotesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [error, setError] = useState<string | null>(null);
 
   // Fetch all notes
-  const getNotes = async () => {
+  const getNotes = useCallback(async () => {
     if (!user) {
       setNotes([]);
       setLoading(false);
@@ -57,15 +60,14 @@ export const NotesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to fetch notes';
       setError(errorMessage);
-      console.error('Error fetching notes:', err);
       return [];
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
 
   // Fetch archived notes
-  const getArchivedNotes = async () => {
+  const getArchivedNotes = useCallback(async () => {
     if (!user) {
       setArchivedNotes([]);
       return [];
@@ -86,13 +88,12 @@ export const NotesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to fetch archived notes';
       setError(errorMessage);
-      console.error('Error fetching archived notes:', err);
       return [];
     }
-  };
+  }, [user]);
 
   // Fetch a single note by ID
-  const getNote = async (id: string): Promise<Note | null> => {
+  const getNote = useCallback(async (id: string): Promise<Note | null> => {
     if (!user) return null;
 
     try {
@@ -109,13 +110,12 @@ export const NotesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to fetch note';
       setError(errorMessage);
-      console.error('Error fetching note:', err);
       return null;
     }
-  };
+  }, [user]);
 
   // Create a new note
-  const createNote = async (noteData: NoteInsert): Promise<Note | null> => {
+  const createNote = useCallback(async (noteData: NoteInsert): Promise<Note | null> => {
     if (!user) return null;
 
     try {
@@ -133,13 +133,12 @@ export const NotesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to create note';
       setError(errorMessage);
-      console.error('Error creating note:', err);
       return null;
     }
-  };
+  }, [user]);
 
   // Update an existing note
-  const updateNote = async (id: string, updates: NoteUpdate): Promise<Note | null> => {
+  const updateNote = useCallback(async (id: string, updates: NoteUpdate): Promise<Note | null> => {
     if (!user) return null;
 
     try {
@@ -161,13 +160,12 @@ export const NotesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to update note';
       setError(errorMessage);
-      console.error('Error updating note:', err);
       return null;
     }
-  };
+  }, [user]);
 
   // Soft delete a note
-  const deleteNote = async (id: string): Promise<boolean> => {
+  const deleteNote = useCallback(async (id: string): Promise<boolean> => {
     if (!user) return false;
 
     try {
@@ -186,13 +184,12 @@ export const NotesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to delete note';
       setError(errorMessage);
-      console.error('Error deleting note:', err);
       return false;
     }
-  };
+  }, [user]);
 
   // Archive a note
-  const archiveNote = async (id: string): Promise<boolean> => {
+  const archiveNote = useCallback(async (id: string): Promise<boolean> => {
     if (!user) return false;
 
     try {
@@ -213,13 +210,12 @@ export const NotesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to archive note';
       setError(errorMessage);
-      console.error('Error archiving note:', err);
       return false;
     }
-  };
+  }, [user]);
 
   // Unarchive a note
-  const unarchiveNote = async (id: string): Promise<boolean> => {
+  const unarchiveNote = useCallback(async (id: string): Promise<boolean> => {
     if (!user) return false;
 
     try {
@@ -240,17 +236,16 @@ export const NotesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to unarchive note';
       setError(errorMessage);
-      console.error('Error unarchiving note:', err);
       return false;
     }
-  };
+  }, [user]);
 
   // Create a share link for a note
-  const createShareLink = async (noteId: string): Promise<string | null> => {
+  const createShareLink = useCallback(async (noteId: string): Promise<string | null> => {
     if (!user) return null;
 
     try {
-      const shareToken = nanoid(21);
+      const shareToken = nanoid(32);
 
       const { error } = await supabase
         .from('shared_notes')
@@ -267,40 +262,39 @@ export const NotesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to create share link';
       setError(errorMessage);
-      console.error('Error creating share link:', err);
       return null;
     }
-  };
+  }, [user]);
 
   // Get note by share token (for read-only view)
-  const getNoteByShareToken = async (shareToken: string): Promise<Note | null> => {
+  const getNoteByShareToken = useCallback(async (shareToken: string): Promise<Note | null> => {
+    // Validate share token format to prevent injection
+    if (!SHARE_TOKEN_REGEX.test(shareToken)) {
+      setError('Invalid share token format');
+      return null;
+    }
+
     try {
-      const { data: sharedNote, error: shareError } = await supabase
+      // Single query with join to avoid N+1
+      const { data, error } = await supabase
         .from('shared_notes')
-        .select('note_id')
+        .select('note_id, notes!inner(id, content, title, created_at, updated_at, is_deleted, is_archived)')
         .eq('share_token', shareToken)
         .eq('is_active', true)
+        .eq('notes.is_deleted', false)
         .single();
 
-      if (shareError) throw shareError;
+      if (error) throw error;
 
-      const { data: note, error: noteError } = await supabase
-        .from('notes')
-        .select('*')
-        .eq('id', sharedNote.note_id)
-        .eq('is_deleted', false)
-        .single();
-
-      if (noteError) throw noteError;
-
-      return note;
+      // Extract the note from the joined result
+      const note = data?.notes as unknown as Note;
+      return note || null;
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to fetch shared note';
       setError(errorMessage);
-      console.error('Error fetching shared note:', err);
       return null;
     }
-  };
+  }, []);
 
   // Load notes on mount and when user changes
   useEffect(() => {
@@ -310,27 +304,46 @@ export const NotesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setNotes([]);
       setLoading(false);
     }
-  }, [user]);
+  }, [user, getNotes]);
+
+  // Memoize context value to prevent unnecessary re-renders
+  const contextValue = useMemo(() => ({
+    notes,
+    archivedNotes,
+    showArchive,
+    setShowArchive,
+    loading,
+    error,
+    getNotes,
+    getArchivedNotes,
+    getNote,
+    createNote,
+    updateNote,
+    deleteNote,
+    archiveNote,
+    unarchiveNote,
+    createShareLink,
+    getNoteByShareToken,
+  }), [
+    notes,
+    archivedNotes,
+    showArchive,
+    loading,
+    error,
+    getNotes,
+    getArchivedNotes,
+    getNote,
+    createNote,
+    updateNote,
+    deleteNote,
+    archiveNote,
+    unarchiveNote,
+    createShareLink,
+    getNoteByShareToken,
+  ]);
 
   return (
-    <NotesContext.Provider value={{
-      notes,
-      archivedNotes,
-      showArchive,
-      setShowArchive,
-      loading,
-      error,
-      getNotes,
-      getArchivedNotes,
-      getNote,
-      createNote,
-      updateNote,
-      deleteNote,
-      archiveNote,
-      unarchiveNote,
-      createShareLink,
-      getNoteByShareToken,
-    }}>
+    <NotesContext.Provider value={contextValue}>
       {children}
     </NotesContext.Provider>
   );

@@ -37,6 +37,7 @@ export const Editor: React.FC<EditorProps> = ({ noteId, isShared = false }) => {
   });
 
   const CustomLink = Link.extend({
+    inclusive: false,
     addInputRules() {
       return [
         markInputRule({

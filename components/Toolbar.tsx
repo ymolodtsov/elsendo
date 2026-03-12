@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useRef, useImperativeHandle } from 'react';
+import React, { useState, useEffect, useRef, useImperativeHandle, memo } from 'react';
 import { Editor } from '@tiptap/react';
 import { findParentNode } from '@tiptap/core';
+import type { Node as ProseMirrorNode } from '@tiptap/pm/model';
 import {
   Bold,
   Italic,
@@ -53,7 +54,7 @@ function convertSingleItem(editor: Editor, fromType: 'taskList' | 'bulletList', 
   // Find the index of current item in the list
   let itemIndex = -1;
   let currentPos = listPos + 1;
-  listNode.forEach((child: any, offset: number, index: number) => {
+  listNode.forEach((child: ProseMirrorNode, _offset: number, index: number) => {
     if (currentPos === itemPos) {
       itemIndex = index;
     }
@@ -68,13 +69,13 @@ function convertSingleItem(editor: Editor, fromType: 'taskList' | 'bulletList', 
   const newList = toListType.create(null, [newItem]);
 
   // Build the replacement: items before + converted item + items after
-  const fragments: any[] = [];
+  const fragments: ProseMirrorNode[] = [];
   const fromListType = schema.nodes[fromType];
 
   // Items before current
   if (itemIndex > 0) {
-    const beforeItems: any[] = [];
-    listNode.forEach((child: any, _offset: number, index: number) => {
+    const beforeItems: ProseMirrorNode[] = [];
+    listNode.forEach((child: ProseMirrorNode, _offset: number, index: number) => {
       if (index < itemIndex) beforeItems.push(child);
     });
     if (beforeItems.length > 0) {
@@ -87,8 +88,8 @@ function convertSingleItem(editor: Editor, fromType: 'taskList' | 'bulletList', 
 
   // Items after current
   if (itemIndex < listNode.childCount - 1) {
-    const afterItems: any[] = [];
-    listNode.forEach((child: any, _offset: number, index: number) => {
+    const afterItems: ProseMirrorNode[] = [];
+    listNode.forEach((child: ProseMirrorNode, _offset: number, index: number) => {
       if (index > itemIndex) afterItems.push(child);
     });
     if (afterItems.length > 0) {

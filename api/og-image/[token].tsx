@@ -1,5 +1,6 @@
 import { ImageResponse } from '@vercel/og';
 import { createClient } from '@supabase/supabase-js';
+import { isValidShareToken, stripHtml } from '../utils';
 
 export const config = {
   runtime: 'edge',
@@ -14,6 +15,11 @@ export default async function handler(request: Request) {
 
   if (!token) {
     return new Response('Missing token', { status: 400 });
+  }
+
+  // Validate token format
+  if (!isValidShareToken(token)) {
+    return new Response('Invalid token format', { status: 400 });
   }
 
   try {
@@ -43,16 +49,8 @@ export default async function handler(request: Request) {
       return generateDefaultImage();
     }
 
-    // Extract text preview
-    const stripHtml = (html: string) => {
-      return html
-        .replace(/<[^>]*>/g, ' ')
-        .replace(/\s+/g, ' ')
-        .trim();
-    };
-
     const title = note.title || 'Shared Note';
-    const preview = stripHtml(note.content || '').slice(0, 150);
+    const preview = stripHtml(note.content || '', 150);
 
     return new ImageResponse(
       (
@@ -125,8 +123,7 @@ export default async function handler(request: Request) {
         height: 630,
       }
     );
-  } catch (error) {
-    console.error('OG image error:', error);
+  } catch {
     return generateDefaultImage();
   }
 }

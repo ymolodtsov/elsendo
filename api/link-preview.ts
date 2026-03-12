@@ -9,6 +9,51 @@ interface LinkPreview {
   siteName?: string;
 }
 
+// Block internal/private IPs to prevent SSRF
+const BLOCKED_HOSTNAMES = [
+  'localhost',
+  '127.0.0.1',
+  '0.0.0.0',
+  '::1',
+  '[::1]',
+];
+
+const PRIVATE_IP_RANGES = [
+  /^10\./,
+  /^172\.(1[6-9]|2[0-9]|3[01])\./,
+  /^192\.168\./,
+  /^169\.254\./,
+  /^fc00:/i,
+  /^fe80:/i,
+];
+
+function isBlockedUrl(urlString: string): boolean {
+  try {
+    const parsed = new URL(urlString);
+
+    // Only allow http/https
+    if (!['http:', 'https:'].includes(parsed.protocol)) {
+      return true;
+    }
+
+    const hostname = parsed.hostname.toLowerCase();
+
+    // Block known internal hostnames
+    if (BLOCKED_HOSTNAMES.includes(hostname)) {
+      return true;
+    }
+
+    // Block private IP ranges
+    if (PRIVATE_IP_RANGES.some(pattern => pattern.test(hostname))) {
+      return true;
+    }
+
+    return false;
+  } catch {
+    return true;
+  }
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' });
@@ -18,6 +63,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   if (!url || typeof url !== 'string') {
     return res.status(400).json({ error: 'URL is required' });
+  }
+
+  // SSRF protection
+  if (isBlockedUrl(url)) {
+    return res.status(400).json({ error: 'Invalid URL' });
   }
 
   try {
@@ -39,8 +89,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // Cache for 1 hour
     res.setHeader('Cache-Control', 's-maxage=3600, stale-while-revalidate');
     return res.status(200).json(preview);
-  } catch (error) {
-    console.error('Error fetching link preview:', error);
+  } catch {
     return res.status(500).json({ error: 'Failed to fetch preview' });
   }
 }

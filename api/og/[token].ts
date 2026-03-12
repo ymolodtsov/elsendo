@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createClient } from '@supabase/supabase-js';
+import { isValidShareToken, stripHtml, escapeHtml } from '../utils';
 
 const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL!;
 const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY!;
@@ -9,6 +10,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   if (!token || typeof token !== 'string') {
     return res.status(400).json({ error: 'Missing token' });
+  }
+
+  // Validate token format to prevent injection
+  if (!isValidShareToken(token)) {
+    return res.status(400).json({ error: 'Invalid token format' });
   }
 
   try {
@@ -37,15 +43,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (noteError || !note) {
       return res.status(404).json({ error: 'Note not found' });
     }
-
-    // Extract text preview from HTML content
-    const stripHtml = (html: string) => {
-      return html
-        .replace(/<[^>]*>/g, ' ')
-        .replace(/\s+/g, ' ')
-        .trim()
-        .slice(0, 200);
-    };
 
     const title = note.title || 'Shared Note';
     const description = stripHtml(note.content || '') || 'A note shared via Elsendo';
@@ -88,17 +85,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     res.setHeader('Content-Type', 'text/html');
     return res.status(200).send(html);
-  } catch (error) {
-    console.error('OG metadata error:', error);
+  } catch {
     return res.status(500).json({ error: 'Internal server error' });
   }
-}
-
-function escapeHtml(text: string): string {
-  return text
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;');
 }
