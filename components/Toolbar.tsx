@@ -309,6 +309,7 @@ export const Toolbar = React.forwardRef<ToolbarHandle, ToolbarProps>(({ editor, 
   const [savedSelection, setSavedSelection] = useState<{ from: number; to: number } | null>(null);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [shareUrl, setShareUrl] = useState('');
+  const [showCopiedToast, setShowCopiedToast] = useState(false);
   const { createShareLink } = useNotes();
 
   // Track the last known selection - updated on every selection change
@@ -447,10 +448,16 @@ export const Toolbar = React.forwardRef<ToolbarHandle, ToolbarProps>(({ editor, 
     setSavedSelection(null);
   };
 
-  const copyAsMarkdown = () => {
+  const copyAsMarkdown = async () => {
     const html = editor.getHTML();
     const markdown = htmlToMarkdown(html);
-    navigator.clipboard.writeText(markdown);
+    try {
+      await navigator.clipboard.writeText(markdown);
+      setShowCopiedToast(true);
+      setTimeout(() => setShowCopiedToast(false), 1500);
+    } catch {
+      // Clipboard permission denied — no toast
+    }
   };
 
   const ToolbarButton = ({
@@ -607,6 +614,15 @@ export const Toolbar = React.forwardRef<ToolbarHandle, ToolbarProps>(({ editor, 
         url={currentLinkUrl}
         position={linkMenuPosition}
       />
+
+      {showCopiedToast && (
+        <div className="fixed bottom-24 sm:bottom-28 left-1/2 -translate-x-1/2 z-[60] animate-fade-in">
+          <div className="px-4 py-2 rounded-xl bg-stone-800 dark:bg-stone-700 text-white text-sm font-medium shadow-lg flex items-center gap-2">
+            <Check className="w-3.5 h-3.5" strokeWidth={2.5} />
+            Copied as Markdown
+          </div>
+        </div>
+      )}
     </>
   );
 });
