@@ -22,13 +22,16 @@ export function htmlToMarkdown(html: string): string {
       case 'H1': return `\n# ${stripInlineFormatting(children)}\n`;
       case 'H2': return `\n## ${stripInlineFormatting(children)}\n`;
       case 'P': {
-        // Inside a list item, don't add paragraph newlines
-        if (isInsideTag(node, 'LI')) return children;
+        if (isInsideTag(node, 'LI')) {
+          // Multiple paragraphs in a list item: separate with newline + indent
+          const prevSibling = node.previousSibling as HTMLElement | null;
+          if (prevSibling && prevSibling.tagName === 'P') return '\n  ' + children;
+          return children;
+        }
         return `\n${children}\n`;
       }
       case 'STRONG':
       case 'B': {
-        // Skip bold inside headings — headings are already emphasized
         if (isInsideTag(node, 'H1') || isInsideTag(node, 'H2')) return children;
         return `**${children}**`;
       }
@@ -37,7 +40,24 @@ export function htmlToMarkdown(html: string): string {
         if (isInsideTag(node, 'H1') || isInsideTag(node, 'H2')) return children;
         return `*${children}*`;
       }
+      case 'S':
+      case 'DEL': return `~~${children}~~`;
       case 'U': return `<u>${children}</u>`;
+      case 'CODE': {
+        // Inline code (not inside a <pre>)
+        if (!isInsideTag(node, 'PRE')) return `\`${children}\``;
+        return children;
+      }
+      case 'PRE': {
+        const code = el.querySelector('code');
+        const text = code ? code.textContent || '' : children;
+        return `\n\`\`\`\n${text}\n\`\`\`\n`;
+      }
+      case 'BLOCKQUOTE': {
+        const lines = children.trim().split('\n');
+        return '\n' + lines.map(line => `> ${line}`).join('\n') + '\n';
+      }
+      case 'HR': return '\n---\n';
       case 'UL': return `\n${children}\n`;
       case 'OL': return `\n${children}\n`;
       case 'LI': {
