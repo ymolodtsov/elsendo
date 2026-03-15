@@ -5,6 +5,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { Trash2, Plus, LogOut, Archive, ArchiveRestore, ArrowLeft } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNotes } from '../contexts/NotesContext';
+import { ConfirmDialog } from './ConfirmDialog';
 
 // Reusable DOMParser instance
 const domParser = new DOMParser();
@@ -41,6 +42,11 @@ export const NotesPanel: React.FC<NotesPanelProps> = React.memo(({
 
   const displayedNotes = showArchive ? archivedNotes : notes;
   const [animatingOut, setAnimatingOut] = useState<{ id: string; type: 'archive' | 'delete' } | null>(null);
+  const [confirmDialog, setConfirmDialog] = useState<{
+    type: 'delete' | 'logout';
+    noteId?: string;
+    noteTitle?: string;
+  } | null>(null);
 
   // Cleanup timeouts on unmount
   useEffect(() => {
@@ -56,10 +62,13 @@ export const NotesPanel: React.FC<NotesPanelProps> = React.memo(({
     setShowArchive(!showArchive);
   }, [showArchive, getArchivedNotes, setShowArchive]);
 
-  const handleLogout = useCallback(async () => {
-    if (window.confirm('Sign out of Elsendo?')) {
-      await signOut();
-    }
+  const handleLogout = useCallback(() => {
+    setConfirmDialog({ type: 'logout' });
+  }, []);
+
+  const handleConfirmLogout = useCallback(async () => {
+    setConfirmDialog(null);
+    await signOut();
   }, [signOut]);
 
   // Memoize title extraction for all displayed notes
@@ -71,16 +80,25 @@ export const NotesPanel: React.FC<NotesPanelProps> = React.memo(({
     return titles;
   }, [displayedNotes]);
 
-  const handleDelete = useCallback((e: React.MouseEvent, id: string) => {
+  const handleDeleteClick = useCallback((e: React.MouseEvent, id: string, title: string) => {
     e.stopPropagation();
-    if (window.confirm('Delete this note?')) {
-      setAnimatingOut({ id, type: 'delete' });
-      timeoutRef.current = setTimeout(() => {
-        onDeleteNote(id);
-        setAnimatingOut(null);
-      }, 250);
-    }
-  }, [onDeleteNote]);
+    setConfirmDialog({ type: 'delete', noteId: id, noteTitle: title });
+  }, []);
+
+  const handleConfirmDelete = useCallback(() => {
+    if (!confirmDialog?.noteId) return;
+    const noteId = confirmDialog.noteId;
+    setConfirmDialog(null);
+    setAnimatingOut({ id: noteId, type: 'delete' });
+    timeoutRef.current = setTimeout(() => {
+      onDeleteNote(noteId);
+      // Don't clear animatingOut - item will be removed from list anyway
+    }, 250);
+  }, [confirmDialog, onDeleteNote]);
+
+  const handleCancelDialog = useCallback(() => {
+    setConfirmDialog(null);
+  }, []);
 
   return (
     <div className="absolute top-14 left-0 w-72 bg-white dark:bg-stone-800 rounded-2xl shadow-2xl border border-stone-200/50 dark:border-stone-700/50 overflow-hidden animate-scale-in">
@@ -155,7 +173,7 @@ export const NotesPanel: React.FC<NotesPanelProps> = React.memo(({
                   } else {
                     await archiveNote(note.id);
                   }
-                  setAnimatingOut(null);
+                  // Don't clear animatingOut - item will be removed from list anyway
                 }, 250);
               };
 
@@ -212,7 +230,7 @@ export const NotesPanel: React.FC<NotesPanelProps> = React.memo(({
                         )}
                       </button>
                       <button
-                        onClick={(e) => handleDelete(e, note.id)}
+                        onClick={(e) => handleDeleteClick(e, note.id, title)}
                         className="p-1 rounded opacity-0 group-hover:opacity-100 hover:bg-red-50 dark:hover:bg-red-900/30 text-stone-400 hover:text-red-500 dark:hover:text-red-400 transition-all"
                         aria-label="Delete note"
                       >
@@ -226,6 +244,30 @@ export const NotesPanel: React.FC<NotesPanelProps> = React.memo(({
           </div>
         )}
       </div>
+
+      {/* Delete confirmation dialog */}
+      <ConfirmDialog
+        open={confirmDialog?.type === 'delete'}
+        title="Delete note"
+        message={`Are you sure you want to delete "${confirmDialog?.noteTitle || 'this note'}"? This action cannot be undone.`}
+        confirmLabel="Delete"
+        cancelLabel="Keep"
+        variant="danger"
+        onConfirm={handleConfirmDelete}
+        onCancel={handleCancelDialog}
+      />
+
+      {/* Logout confirmation dialog */}
+      <ConfirmDialog
+        open={confirmDialog?.type === 'logout'}
+        title="Sign out"
+        message="Are you sure you want to sign out of Elsendo?"
+        confirmLabel="Sign out"
+        cancelLabel="Cancel"
+        variant="default"
+        onConfirm={handleConfirmLogout}
+        onCancel={handleCancelDialog}
+      />
     </div>
   );
 });

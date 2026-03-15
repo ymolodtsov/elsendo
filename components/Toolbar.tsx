@@ -13,7 +13,7 @@ import {
   Link as LinkIcon,
   X,
   Check,
-  Download,
+  Copy,
   Share2,
   Pencil,
   ExternalLink,
@@ -23,6 +23,7 @@ import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { ShareModal } from '../src/components/ShareModal';
 import { useNotes } from '../src/contexts/NotesContext';
+import { htmlToMarkdown } from '../src/lib/htmlToMarkdown';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -374,15 +375,19 @@ export const Toolbar = React.forwardRef<ToolbarHandle, ToolbarProps>(({ editor, 
   };
 
   const closeLinkModal = () => {
+    const scrollY = window.scrollY;
     setIsLinkModalOpen(false);
     if (savedSelection) {
       editor.commands.setTextSelection(savedSelection);
-      editor.commands.focus();
+      editor.view.dom.focus({ preventScroll: true });
     }
+    requestAnimationFrame(() => window.scrollTo(0, scrollY));
     setSavedSelection(null);
   };
 
   const handleLinkSave = (url: string) => {
+    const scrollY = window.scrollY;
+
     if (savedSelection) {
       editor.commands.setTextSelection(savedSelection);
     }
@@ -401,6 +406,8 @@ export const Toolbar = React.forwardRef<ToolbarHandle, ToolbarProps>(({ editor, 
         editor.chain().focus().setLink({ href: finalUrl }).run();
       }
     }
+
+    requestAnimationFrame(() => window.scrollTo(0, scrollY));
     setIsLinkModalOpen(false);
     setSavedSelection(null);
   };
@@ -440,73 +447,10 @@ export const Toolbar = React.forwardRef<ToolbarHandle, ToolbarProps>(({ editor, 
     setSavedSelection(null);
   };
 
-  const downloadMarkdown = () => {
+  const copyAsMarkdown = () => {
     const html = editor.getHTML();
-    const doc = new DOMParser().parseFromString(html, 'text/html');
-
-    const convertNode = (node: Node): string => {
-      if (node.nodeType === Node.TEXT_NODE) {
-        return node.textContent || '';
-      }
-
-      const children = Array.from(node.childNodes).map(convertNode).join('');
-
-      switch ((node as HTMLElement).tagName) {
-        case 'H1': return `\n# ${children}\n`;
-        case 'H2': return `\n## ${children}\n`;
-        case 'P': return `\n${children}\n`;
-        case 'STRONG':
-        case 'B': return `**${children}**`;
-        case 'EM':
-        case 'I': return `*${children}*`;
-        case 'U': return `<u>${children}</u>`;
-        case 'UL': {
-          const element = node as HTMLElement;
-          const isTaskList = element.getAttribute('data-type') === 'taskList';
-          return `\n${children}\n`;
-        }
-        case 'OL': return `\n${children}\n`;
-        case 'LI': {
-          const parent = node.parentNode as HTMLElement;
-          const element = node as HTMLElement;
-          const isTaskList = parent && parent.getAttribute('data-type') === 'taskList';
-          const isOrdered = parent && parent.tagName === 'OL';
-
-          if (isTaskList) {
-            const isChecked = element.getAttribute('data-checked') === 'true';
-            return `- [${isChecked ? 'x' : ' '}] ${children}\n`;
-          }
-          if (isOrdered) {
-             const index = Array.from(parent.children).indexOf(node as Element) + 1;
-             return `${index}. ${children}\n`;
-          }
-          return `* ${children}\n`;
-        }
-        case 'A': return `[${children}](${(node as HTMLAnchorElement).getAttribute('href')})`;
-        case 'BR': return '\n';
-        default: return children;
-      }
-    };
-
-    let markdown = convertNode(doc.body).trim();
-    markdown = markdown.replace(/\n{3,}/g, '\n\n');
-
-    const firstHeading = doc.querySelector('h1, h2')?.textContent;
-    const fileName = (firstHeading || 'elsendo-note')
-      .slice(0, 30)
-      .trim()
-      .replace(/[^a-z0-9]/gi, '-')
-      .toLowerCase();
-
-    const blob = new Blob([markdown], { type: 'text/markdown' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `${fileName}.md`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+    const markdown = htmlToMarkdown(html);
+    navigator.clipboard.writeText(markdown);
   };
 
   const ToolbarButton = ({
@@ -635,9 +579,9 @@ export const Toolbar = React.forwardRef<ToolbarHandle, ToolbarProps>(({ editor, 
         )}
 
         <ToolbarButton
-          onClick={downloadMarkdown}
-          icon={Download}
-          label="Download as Markdown"
+          onClick={copyAsMarkdown}
+          icon={Copy}
+          label="Copy as Markdown"
         />
       </div>
 

@@ -7,7 +7,10 @@ import Placeholder from '@tiptap/extension-placeholder';
 import TaskList from '@tiptap/extension-task-list';
 import TaskItem from '@tiptap/extension-task-item';
 import { markInputRule } from '@tiptap/core';
+import { Plugin, PluginKey } from '@tiptap/pm/state';
+import { DOMSerializer } from '@tiptap/pm/model';
 import { Toolbar, ToolbarHandle } from './Toolbar';
+import { htmlToMarkdown } from '../src/lib/htmlToMarkdown';
 import { LinkPreviewOverlay } from './LinkPreview';
 import { useNotes } from '../src/contexts/NotesContext';
 import { useAutoSave } from '../src/hooks/useAutoSave';
@@ -49,6 +52,44 @@ export const Editor: React.FC<EditorProps> = ({ noteId, isShared = false }) => {
         }),
       ];
     },
+    addProseMirrorPlugins() {
+      const linkType = this.type;
+      return [
+        ...(this.parent?.() || []),
+        new Plugin({
+          key: new PluginKey('linkSpaceBreak'),
+          appendTransaction(transactions, _oldState, newState) {
+            if (!transactions.some(tr => tr.docChanged)) return null;
+
+            const tr = newState.tr;
+            let modified = false;
+
+            newState.doc.descendants((node, pos) => {
+              if (!node.isText) return;
+              const mark = linkType.isInSet(node.marks);
+              if (!mark || !node.text) return;
+
+              const text = node.text;
+
+              // Strip leading spaces at the start of a link range
+              if (text[0] === ' ') {
+                const $pos = newState.doc.resolve(pos);
+                const before = $pos.nodeBefore;
+                const isLinkStart = !before || !linkType.isInSet(before.marks);
+                if (isLinkStart) {
+                  let i = 0;
+                  while (i < text.length && text[i] === ' ') i++;
+                  tr.removeMark(pos, pos + i, linkType);
+                  modified = true;
+                }
+              }
+            });
+
+            return modified ? tr : null;
+          },
+        }),
+      ];
+    },
   });
 
   const editor = useEditor({
@@ -81,6 +122,13 @@ export const Editor: React.FC<EditorProps> = ({ noteId, isShared = false }) => {
     editorProps: {
       attributes: {
         class: 'prose prose-lg max-w-none focus:outline-none min-h-[60vh] leading-relaxed transition-colors duration-200 [&_li]:!my-1 [&_li>p]:!m-0 [&_li>ul]:!m-0 [&_li>ol]:!m-0 [&_ul]:!my-0 [&_ol]:!my-0 prose-headings:text-stone-800 dark:prose-headings:text-stone-100 prose-p:text-stone-700 dark:prose-p:text-stone-200 prose-a:text-stone-700 dark:prose-a:text-stone-300 prose-a:underline hover:prose-a:text-stone-800 dark:hover:prose-a:text-stone-200 prose-strong:text-stone-800 dark:prose-strong:text-stone-100 prose-ul:text-stone-700 dark:prose-ul:text-stone-200 prose-ol:text-stone-700 dark:prose-ol:text-stone-200',
+      },
+      clipboardTextSerializer: (slice) => {
+        const schema = slice.content.firstChild?.type.schema;
+        if (!schema) return '';
+        const div = document.createElement('div');
+        div.appendChild(DOMSerializer.fromSchema(schema).serializeFragment(slice.content));
+        return htmlToMarkdown(div.innerHTML);
       },
     },
     editable: !isShared,
