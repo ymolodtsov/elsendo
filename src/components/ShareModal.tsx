@@ -131,7 +131,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({ isOpen, onClose, onShare
               <button
                 onClick={handleShare}
                 disabled={isCreating}
-                className="w-full px-4 py-3 text-sm font-medium bg-stone-800 hover:bg-stone-700 text-white rounded-xl transition-all shadow hover:shadow-md flex items-center justify-center gap-2 active:scale-[0.98] disabled:opacity-60"
+                className="w-full px-4 py-3 text-sm font-medium bg-stone-800 dark:bg-stone-100 hover:bg-stone-700 dark:hover:bg-white text-white dark:text-stone-800 rounded-xl transition-all shadow hover:shadow-md flex items-center justify-center gap-2 active:scale-[0.98] disabled:opacity-60"
               >
                 <Share2 className="w-4 h-4" strokeWidth={2} />
                 {isCreating ? 'Creating link...' : 'Create share link'}
