@@ -212,11 +212,51 @@ export const NotesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   }, [user, isOnline, notes]);
 
+  // Extract storage paths for images embedded in note HTML
+  const extractImagePaths = useCallback((content: string): string[] => {
+    const bucketUrl = `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/note-images/`;
+    const paths: string[] = [];
+    const regex = /src="([^"]+)"/g;
+    let match;
+    while ((match = regex.exec(content)) !== null) {
+      const url = match[1];
+      if (url.startsWith(bucketUrl)) {
+        paths.push(url.slice(bucketUrl.length));
+      }
+    }
+    return paths;
+  }, []);
+
+  // Delete images from storage via server endpoint
+  const deleteImages = useCallback(async (paths: string[]) => {
+    if (paths.length === 0) return;
+    try {
+      const session = await supabase.auth.getSession();
+      const token = session.data.session?.access_token;
+      if (!token) return;
+
+      await fetch('/api/delete-images', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ paths }),
+      });
+    } catch {
+      // Image cleanup is best-effort — don't block note deletion
+    }
+  }, []);
+
   // Soft delete a note
   const deleteNote = useCallback(async (id: string): Promise<boolean> => {
     if (!user) return false;
 
     try {
+      // Find the note to extract images before deleting
+      const note = notes.find(n => n.id === id) || archivedNotes.find(n => n.id === id);
+      const imagePaths = note?.content ? extractImagePaths(note.content) : [];
+
       const { error } = await supabase
         .from('notes')
         .update({ is_deleted: true })
@@ -224,6 +264,11 @@ export const NotesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         .eq('user_id', user.id);
 
       if (error) throw error;
+
+      // Clean up images (best-effort, don't block on failure)
+      if (imagePaths.length > 0) {
+        deleteImages(imagePaths);
+      }
 
       // Update local state (remove from both lists)
       setNotes(prevNotes => prevNotes.filter(note => note.id !== id));
@@ -234,7 +279,7 @@ export const NotesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setError(errorMessage);
       return false;
     }
-  }, [user]);
+  }, [user, notes, archivedNotes, extractImagePaths, deleteImages]);
 
   // Archive a note
   const archiveNote = useCallback(async (id: string): Promise<boolean> => {
