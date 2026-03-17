@@ -8,6 +8,7 @@ import { LoginForm } from './src/components/LoginForm';
 import { Feather, Plus, FileText, X, Loader2 } from 'lucide-react';
 import { ConnectivityProvider, useConnectivity } from './src/contexts/ConnectivityContext';
 import { OfflineBanner } from './src/components/OfflineBanner';
+import { ConflictResolver } from './src/components/ConflictResolver';
 
 const AuthenticatedApp: React.FC = () => {
   const [isNotesOpen, setIsNotesOpen] = useState(false);
@@ -125,6 +126,7 @@ const AuthenticatedApp: React.FC = () => {
   return (
     <div className="min-h-screen bg-stone-50 dark:bg-stone-900 flex flex-col relative overflow-hidden transition-colors duration-300">
       <OfflineBanner />
+      <ConflictResolver />
       <main className="flex-1 overflow-auto">
         <Routes>
           <Route path="/" element={<HomeRedirect notes={notes} loading={loading} onNewNote={handleNewNote} />} />

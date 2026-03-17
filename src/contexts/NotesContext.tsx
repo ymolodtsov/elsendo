@@ -14,6 +14,13 @@ import {
 // Share token validation: alphanumeric + dash/underscore, 32 chars
 const SHARE_TOKEN_REGEX = /^[A-Za-z0-9_-]{32}$/;
 
+export interface SyncConflict {
+  noteId: string;
+  noteTitle: string | null;
+  local: { content: string; updatedAt: string };
+  server: { content: string; updatedAt: string };
+}
+
 interface NotesContextType {
   notes: Note[];
   archivedNotes: Note[];
@@ -21,6 +28,8 @@ interface NotesContextType {
   setShowArchive: (show: boolean) => void;
   loading: boolean;
   error: string | null;
+  conflicts: SyncConflict[];
+  resolveConflict: (noteId: string, pick: 'local' | 'server') => Promise<void>;
   getNotes: () => Promise<Note[]>;
   getArchivedNotes: () => Promise<Note[]>;
   getNote: (id: string) => Promise<Note | null>;
@@ -44,6 +53,7 @@ export const NotesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [showArchive, setShowArchive] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [conflicts, setConflicts] = useState<SyncConflict[]>([]);
 
   // Fetch all notes
   const getNotes = useCallback(async () => {
@@ -342,6 +352,34 @@ export const NotesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   }, [user, getNotes]);
 
+  // Resolve a sync conflict — user picks local or server version
+  const resolveConflict = useCallback(async (noteId: string, pick: 'local' | 'server') => {
+    if (!user) return;
+
+    const conflict = conflicts.find(c => c.noteId === noteId);
+    if (!conflict) return;
+
+    if (pick === 'local') {
+      // Push our version to server
+      await supabase
+        .from('notes')
+        .update({
+          content: conflict.local.content,
+          title: conflict.noteTitle,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', noteId)
+        .eq('user_id', user.id);
+    }
+    // If pick === 'server', nothing to push — server already has the right version
+
+    removeFromOfflineQueue(noteId);
+    setConflicts(prev => prev.filter(c => c.noteId !== noteId));
+
+    // Refresh to get the final state
+    await getNotes();
+  }, [user, conflicts, getNotes]);
+
   // Sync offline queue when coming back online
   useEffect(() => {
     const wasOffline = !prevOnlineRef.current;
@@ -353,13 +391,14 @@ export const NotesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const syncQueue = async () => {
       setIsSyncing(true);
       const queue = getOfflineQueue();
+      const detectedConflicts: SyncConflict[] = [];
 
       for (const [noteId, entry] of Object.entries(queue)) {
         try {
           // Check current server state
           const { data: serverNote } = await supabase
             .from('notes')
-            .select('updated_at')
+            .select('content, title, updated_at')
             .eq('id', noteId)
             .eq('user_id', user.id)
             .single();
@@ -370,11 +409,10 @@ export const NotesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             continue;
           }
 
-          // Last-write-wins: push if our edit is newer than server
-          const serverTime = new Date(serverNote.updated_at).getTime();
-          const localTime = new Date(entry.updatedAt).getTime();
+          const serverChanged = serverNote.updated_at > entry.serverUpdatedAt;
 
-          if (localTime >= serverTime) {
+          if (!serverChanged) {
+            // No conflict — push our version
             await supabase
               .from('notes')
               .update({
@@ -384,18 +422,30 @@ export const NotesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               })
               .eq('id', noteId)
               .eq('user_id', user.id);
+            removeFromOfflineQueue(noteId);
+          } else {
+            // Conflict — collect for user resolution
+            detectedConflicts.push({
+              noteId,
+              noteTitle: entry.title,
+              local: { content: entry.content, updatedAt: entry.updatedAt },
+              server: { content: serverNote.content, updatedAt: serverNote.updated_at },
+            });
           }
-
-          removeFromOfflineQueue(noteId);
         } catch {
           // Network dropped again mid-sync — stop, will retry next time
           break;
         }
       }
 
-      // Refresh full list from server
+      // Refresh list from server
       await getNotes();
       setIsSyncing(false);
+
+      // Show conflicts to user (if any)
+      if (detectedConflicts.length > 0) {
+        setConflicts(detectedConflicts);
+      }
     };
 
     syncQueue();
@@ -409,6 +459,8 @@ export const NotesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setShowArchive,
     loading,
     error,
+    conflicts,
+    resolveConflict,
     getNotes,
     getArchivedNotes,
     getNote,
@@ -425,6 +477,8 @@ export const NotesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     showArchive,
     loading,
     error,
+    conflicts,
+    resolveConflict,
     getNotes,
     getArchivedNotes,
     getNote,
