@@ -13,6 +13,7 @@ import { Toolbar, ToolbarHandle } from './Toolbar';
 import { htmlToMarkdown } from '../src/lib/htmlToMarkdown';
 import { LinkPreviewOverlay } from './LinkPreview';
 import { useNotes } from '../src/contexts/NotesContext';
+import { useConnectivity } from '../src/contexts/ConnectivityContext';
 import { useAutoSave } from '../src/hooks/useAutoSave';
 
 interface EditorProps {
@@ -23,6 +24,7 @@ interface EditorProps {
 export const Editor: React.FC<EditorProps> = ({ noteId, isShared = false }) => {
   const [isLoading, setIsLoading] = useState(true);
   const { getNote, updateNote, getNoteByShareToken } = useNotes();
+  const { isOnline } = useConnectivity();
   const toolbarRef = useRef<ToolbarHandle>(null);
   const editorContainerRef = useRef<HTMLDivElement>(null);
 
@@ -231,6 +233,11 @@ export const Editor: React.FC<EditorProps> = ({ noteId, isShared = false }) => {
               <span className="text-stone-400 dark:text-stone-400 flex items-center gap-2">
                 <span className="w-1.5 h-1.5 rounded-full bg-stone-400 animate-pulse" />
                 Saving...
+              </span>
+            ) : !isOnline ? (
+              <span className="text-amber-600 dark:text-amber-400 flex items-center gap-2">
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+                Saved locally
               </span>
             ) : (
               <span className="text-stone-600 dark:text-stone-400">Saved</span>

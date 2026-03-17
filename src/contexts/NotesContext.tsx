@@ -1,8 +1,15 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { Note, NoteInsert, NoteUpdate } from '../types';
 import { nanoid } from 'nanoid';
 import { useAuth } from './AuthContext';
+import { useConnectivity } from './ConnectivityContext';
+import {
+  getOfflineQueue,
+  saveToOfflineQueue,
+  removeFromOfflineQueue,
+  hasOfflineChanges,
+} from '../lib/offlineQueue';
 
 // Share token validation: alphanumeric + dash/underscore, 32 chars
 const SHARE_TOKEN_REGEX = /^[A-Za-z0-9_-]{32}$/;
@@ -30,6 +37,8 @@ const NotesContext = createContext<NotesContextType | undefined>(undefined);
 
 export const NotesProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user } = useAuth();
+  const { isOnline, setIsSyncing } = useConnectivity();
+  const prevOnlineRef = useRef(isOnline);
   const [notes, setNotes] = useState<Note[]>([]);
   const [archivedNotes, setArchivedNotes] = useState<Note[]>([]);
   const [showArchive, setShowArchive] = useState(false);
@@ -137,14 +146,39 @@ export const NotesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   }, [user]);
 
-  // Update an existing note
+  // Update an existing note (with offline fallback)
   const updateNote = useCallback(async (id: string, updates: NoteUpdate): Promise<Note | null> => {
     if (!user) return null;
+
+    const now = new Date().toISOString();
+
+    // Find the current note to get its server timestamp for conflict detection
+    const currentNote = notes.find(n => n.id === id);
+
+    const saveOffline = () => {
+      saveToOfflineQueue(id, {
+        content: updates.content || currentNote?.content || '',
+        title: updates.title !== undefined ? updates.title : currentNote?.title || null,
+        updatedAt: now,
+        serverUpdatedAt: currentNote?.updated_at || now,
+      });
+      // Optimistically update local state
+      if (currentNote) {
+        const optimistic = { ...currentNote, ...updates, updated_at: now };
+        setNotes(prev => prev.map(n => n.id === id ? optimistic : n));
+        return optimistic;
+      }
+      return null;
+    };
+
+    if (!isOnline) {
+      return saveOffline();
+    }
 
     try {
       const { data, error } = await supabase
         .from('notes')
-        .update({ ...updates, updated_at: new Date().toISOString() })
+        .update({ ...updates, updated_at: now })
         .eq('id', id)
         .eq('user_id', user.id)
         .select()
@@ -152,17 +186,19 @@ export const NotesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
       if (error) throw error;
 
+      // Success — clear from offline queue if it was there
+      removeFromOfflineQueue(id);
+
       // Update local state
       setNotes(prevNotes =>
         prevNotes.map(note => (note.id === id ? data : note))
       );
       return data;
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to update note';
-      setError(errorMessage);
-      return null;
+    } catch {
+      // Network failure — fall back to offline queue
+      return saveOffline();
     }
-  }, [user]);
+  }, [user, isOnline, notes]);
 
   // Soft delete a note
   const deleteNote = useCallback(async (id: string): Promise<boolean> => {
@@ -305,6 +341,65 @@ export const NotesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setLoading(false);
     }
   }, [user, getNotes]);
+
+  // Sync offline queue when coming back online
+  useEffect(() => {
+    const wasOffline = !prevOnlineRef.current;
+    prevOnlineRef.current = isOnline;
+
+    if (!isOnline || !wasOffline || !user) return;
+    if (!hasOfflineChanges()) return;
+
+    const syncQueue = async () => {
+      setIsSyncing(true);
+      const queue = getOfflineQueue();
+
+      for (const [noteId, entry] of Object.entries(queue)) {
+        try {
+          // Check current server state
+          const { data: serverNote } = await supabase
+            .from('notes')
+            .select('updated_at')
+            .eq('id', noteId)
+            .eq('user_id', user.id)
+            .single();
+
+          if (!serverNote) {
+            // Note was deleted on server — discard offline edit
+            removeFromOfflineQueue(noteId);
+            continue;
+          }
+
+          // Last-write-wins: push if our edit is newer than server
+          const serverTime = new Date(serverNote.updated_at).getTime();
+          const localTime = new Date(entry.updatedAt).getTime();
+
+          if (localTime >= serverTime) {
+            await supabase
+              .from('notes')
+              .update({
+                content: entry.content,
+                title: entry.title,
+                updated_at: entry.updatedAt,
+              })
+              .eq('id', noteId)
+              .eq('user_id', user.id);
+          }
+
+          removeFromOfflineQueue(noteId);
+        } catch {
+          // Network dropped again mid-sync — stop, will retry next time
+          break;
+        }
+      }
+
+      // Refresh full list from server
+      await getNotes();
+      setIsSyncing(false);
+    };
+
+    syncQueue();
+  }, [isOnline, user, getNotes, setIsSyncing]);
 
   // Memoize context value to prevent unnecessary re-renders
   const contextValue = useMemo(() => ({

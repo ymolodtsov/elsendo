@@ -6,11 +6,14 @@ import { AuthProvider, useAuth } from './src/contexts/AuthContext';
 import { NotesProvider, useNotes } from './src/contexts/NotesContext';
 import { LoginForm } from './src/components/LoginForm';
 import { Feather, Plus, FileText, X, Loader2 } from 'lucide-react';
+import { ConnectivityProvider, useConnectivity } from './src/contexts/ConnectivityContext';
+import { OfflineBanner } from './src/components/OfflineBanner';
 
 const AuthenticatedApp: React.FC = () => {
   const [isNotesOpen, setIsNotesOpen] = useState(false);
   const [showMigrationToast, setShowMigrationToast] = useState(false);
   const { notes, loading, createNote, deleteNote, getNotes } = useNotes();
+  const { isOnline } = useConnectivity();
   const navigate = useNavigate();
   const location = useLocation();
   const panelRef = useRef<HTMLDivElement>(null);
@@ -82,6 +85,8 @@ const AuthenticatedApp: React.FC = () => {
   }, [isNotesOpen]);
 
   const handleNewNote = async () => {
+    if (!isOnline) return;
+
     const newNote = await createNote({
       content: '<p></p>',
       title: null,
@@ -119,6 +124,7 @@ const AuthenticatedApp: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-stone-50 dark:bg-stone-900 flex flex-col relative overflow-hidden transition-colors duration-300">
+      <OfflineBanner />
       <main className="flex-1 overflow-auto">
         <Routes>
           <Route path="/" element={<HomeRedirect notes={notes} loading={loading} onNewNote={handleNewNote} />} />
@@ -158,9 +164,14 @@ const AuthenticatedApp: React.FC = () => {
 
       <button
         onClick={handleNewNote}
-        className="fixed top-4 right-4 sm:top-6 sm:right-6 z-50 p-3 bg-stone-800 hover:bg-stone-700 text-white rounded-full shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105 active:scale-95"
+        disabled={!isOnline}
+        className={`fixed top-4 right-4 sm:top-6 sm:right-6 z-50 p-3 rounded-full shadow-lg transition-all duration-200 ${
+          isOnline
+            ? 'bg-stone-800 hover:bg-stone-700 text-white hover:shadow-xl hover:scale-105 active:scale-95'
+            : 'bg-stone-300 dark:bg-stone-700 text-stone-400 dark:text-stone-500 cursor-not-allowed'
+        }`}
         aria-label="New note"
-        title="New note"
+        title={isOnline ? 'New note' : 'Connect to create new notes'}
       >
         <Plus className="w-5 h-5" strokeWidth={2} />
       </button>
@@ -264,12 +275,14 @@ const AppWithRouter: React.FC = () => {
   return (
     <Router>
       <AuthProvider>
-        <NotesProvider>
-          <Routes>
-            <Route path="/shared/:token" element={<SharedNoteView />} />
-            <Route path="/*" element={<App />} />
-          </Routes>
-        </NotesProvider>
+        <ConnectivityProvider>
+          <NotesProvider>
+            <Routes>
+              <Route path="/shared/:token" element={<SharedNoteView />} />
+              <Route path="/*" element={<App />} />
+            </Routes>
+          </NotesProvider>
+        </ConnectivityProvider>
       </AuthProvider>
     </Router>
   );
