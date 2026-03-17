@@ -380,76 +380,81 @@ export const NotesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     await getNotes();
   }, [user, conflicts, getNotes]);
 
-  // Sync offline queue when coming back online
+  // Sync offline queue — called on reconnect and on startup
+  const syncQueueRef = useRef<() => Promise<void>>();
+  syncQueueRef.current = async () => {
+    if (!user || !isOnline || !hasOfflineChanges()) return;
+
+    setIsSyncing(true);
+    const queue = getOfflineQueue();
+    const detectedConflicts: SyncConflict[] = [];
+
+    for (const [noteId, entry] of Object.entries(queue)) {
+      try {
+        const { data: serverNote } = await supabase
+          .from('notes')
+          .select('content, title, updated_at')
+          .eq('id', noteId)
+          .eq('user_id', user.id)
+          .single();
+
+        if (!serverNote) {
+          removeFromOfflineQueue(noteId);
+          continue;
+        }
+
+        const serverChanged = serverNote.updated_at > entry.serverUpdatedAt;
+
+        if (!serverChanged) {
+          await supabase
+            .from('notes')
+            .update({
+              content: entry.content,
+              title: entry.title,
+              updated_at: entry.updatedAt,
+            })
+            .eq('id', noteId)
+            .eq('user_id', user.id);
+          removeFromOfflineQueue(noteId);
+        } else {
+          detectedConflicts.push({
+            noteId,
+            noteTitle: entry.title,
+            local: { content: entry.content, updatedAt: entry.updatedAt },
+            server: { content: serverNote.content, updatedAt: serverNote.updated_at },
+          });
+        }
+      } catch {
+        break;
+      }
+    }
+
+    await getNotes();
+    setIsSyncing(false);
+
+    if (detectedConflicts.length > 0) {
+      setConflicts(detectedConflicts);
+    }
+  };
+
+  // Sync on reconnect (offline → online transition)
   useEffect(() => {
     const wasOffline = !prevOnlineRef.current;
     prevOnlineRef.current = isOnline;
 
-    if (!isOnline || !wasOffline || !user) return;
+    if (isOnline && wasOffline) {
+      syncQueueRef.current?.();
+    }
+  }, [isOnline]);
+
+  // Sync on startup if there are queued changes from a previous session
+  const didStartupSync = useRef(false);
+  useEffect(() => {
+    if (didStartupSync.current || !user || !isOnline) return;
     if (!hasOfflineChanges()) return;
-
-    const syncQueue = async () => {
-      setIsSyncing(true);
-      const queue = getOfflineQueue();
-      const detectedConflicts: SyncConflict[] = [];
-
-      for (const [noteId, entry] of Object.entries(queue)) {
-        try {
-          // Check current server state
-          const { data: serverNote } = await supabase
-            .from('notes')
-            .select('content, title, updated_at')
-            .eq('id', noteId)
-            .eq('user_id', user.id)
-            .single();
-
-          if (!serverNote) {
-            // Note was deleted on server — discard offline edit
-            removeFromOfflineQueue(noteId);
-            continue;
-          }
-
-          const serverChanged = serverNote.updated_at > entry.serverUpdatedAt;
-
-          if (!serverChanged) {
-            // No conflict — push our version
-            await supabase
-              .from('notes')
-              .update({
-                content: entry.content,
-                title: entry.title,
-                updated_at: entry.updatedAt,
-              })
-              .eq('id', noteId)
-              .eq('user_id', user.id);
-            removeFromOfflineQueue(noteId);
-          } else {
-            // Conflict — collect for user resolution
-            detectedConflicts.push({
-              noteId,
-              noteTitle: entry.title,
-              local: { content: entry.content, updatedAt: entry.updatedAt },
-              server: { content: serverNote.content, updatedAt: serverNote.updated_at },
-            });
-          }
-        } catch {
-          // Network dropped again mid-sync — stop, will retry next time
-          break;
-        }
-      }
-
-      // Refresh list from server
-      await getNotes();
-      setIsSyncing(false);
-
-      // Show conflicts to user (if any)
-      if (detectedConflicts.length > 0) {
-        setConflicts(detectedConflicts);
-      }
-    };
-
-    syncQueue();
-  }, [isOnline, user, getNotes, setIsSyncing]);
+    didStartupSync.current = true;
+    syncQueueRef.current?.();
+  }, [user, isOnline]);
 
   // Memoize context value to prevent unnecessary re-renders
   const contextValue = useMemo(() => ({
