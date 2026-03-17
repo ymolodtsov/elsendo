@@ -333,7 +333,7 @@ export const NotesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   }, [user]);
 
-  // Get existing active share link for a note
+  // Get existing active share link for a note (picks latest if duplicates exist)
   const getShareLink = useCallback(async (noteId: string): Promise<string | null> => {
     if (!user) return null;
 
@@ -344,10 +344,11 @@ export const NotesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         .eq('note_id', noteId)
         .eq('user_id', user.id)
         .eq('is_active', true)
-        .maybeSingle();
+        .order('created_at', { ascending: false })
+        .limit(1);
 
       if (error) throw error;
-      return data?.share_token || null;
+      return data?.[0]?.share_token || null;
     } catch {
       return null;
     }
@@ -358,6 +359,14 @@ export const NotesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (!user) return null;
 
     try {
+      // Deactivate any existing active links first (cleans up old duplicates)
+      await supabase
+        .from('shared_notes')
+        .update({ is_active: false })
+        .eq('note_id', noteId)
+        .eq('user_id', user.id)
+        .eq('is_active', true);
+
       const shareToken = nanoid(32);
 
       const { error } = await supabase
