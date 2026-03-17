@@ -28,3 +28,9 @@ dist-ssr
 .env
 .env.local
 .env.*.local
+
+# Keys
+sshkey*
+
+# Supabase temp
+supabase/.temp/

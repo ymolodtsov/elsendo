@@ -76,6 +76,11 @@ export function htmlToMarkdown(html: string): string {
         return `* ${children.trim()}\n`;
       }
       case 'A': return `[${children}](${(node as HTMLAnchorElement).getAttribute('href')})`;
+      case 'IMG': {
+        const src = (node as HTMLImageElement).getAttribute('src') || '';
+        const alt = (node as HTMLImageElement).getAttribute('alt') || '';
+        return `![${alt}](${src})`;
+      }
       case 'BR': return '\n';
       default: return children;
     }

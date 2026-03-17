@@ -185,3 +185,18 @@ body {
   }
 
 }
+
+/* ============================================
+   Image styles
+   ============================================ */
+
+.ProseMirror .editor-image {
+  max-width: 100%;
+  height: auto;
+  border-radius: 0.5rem;
+  margin: 0.75rem 0;
+}
+
+.ProseMirror li .editor-image {
+  margin: 0.5rem 0;
+}

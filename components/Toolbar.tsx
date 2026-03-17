@@ -17,13 +17,17 @@ import {
   Share2,
   Pencil,
   ExternalLink,
-  Trash2
+  Trash2,
+  ImagePlus,
+  Loader2,
 } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { ShareModal } from '../src/components/ShareModal';
 import { useNotes } from '../src/contexts/NotesContext';
+import { useConnectivity } from '../src/contexts/ConnectivityContext';
 import { htmlToMarkdown } from '../src/lib/htmlToMarkdown';
+import { uploadImage } from '../src/lib/imageUpload';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -310,7 +314,10 @@ export const Toolbar = React.forwardRef<ToolbarHandle, ToolbarProps>(({ editor, 
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [shareUrl, setShareUrl] = useState('');
   const [showCopiedToast, setShowCopiedToast] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const imageInputRef = useRef<HTMLInputElement>(null);
   const { createShareLink } = useNotes();
+  const { isOnline } = useConnectivity();
 
   // Track the last known selection - updated on every selection change
   const lastSelectionRef = useRef<{ from: number; to: number } | null>(null);
@@ -460,34 +467,56 @@ export const Toolbar = React.forwardRef<ToolbarHandle, ToolbarProps>(({ editor, 
     }
   };
 
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !editor) return;
+
+    // Reset input so the same file can be selected again
+    e.target.value = '';
+
+    setIsUploading(true);
+    try {
+      const url = await uploadImage(file);
+      editor.chain().focus().setImage({ src: url }).run();
+    } catch (err) {
+      console.error('Image upload failed:', err);
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
   const ToolbarButton = ({
     onClick,
     isActive,
     icon: Icon,
-    label
+    label,
+    disabled,
   }: {
     onClick: () => void;
     isActive?: boolean;
     icon: React.ElementType;
     label: string;
+    disabled?: boolean;
   }) => (
     <button
       type="button"
       tabIndex={-1}
       onMouseDown={(e) => {
         e.preventDefault();
-        onClick();
+        if (!disabled) onClick();
       }}
       className={cn(
-        "p-1.5 sm:p-2.5 rounded-lg sm:rounded-xl transition-all duration-200 flex items-center justify-center active:scale-95",
-        isActive
-          ? "bg-stone-200 dark:bg-stone-700 text-stone-800 dark:text-stone-200"
-          : "text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-200 hover:bg-stone-100 dark:hover:bg-stone-700"
+        "p-1.5 sm:p-2.5 rounded-lg sm:rounded-xl transition-all duration-200 flex items-center justify-center",
+        disabled
+          ? "text-stone-300 dark:text-stone-600 cursor-not-allowed"
+          : isActive
+            ? "bg-stone-200 dark:bg-stone-700 text-stone-800 dark:text-stone-200"
+            : "text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-200 hover:bg-stone-100 dark:hover:bg-stone-700 active:scale-95"
       )}
       title={label}
       aria-label={label}
     >
-      <Icon className="w-4 h-4 sm:w-[18px] sm:h-[18px]" strokeWidth={2} />
+      <Icon className={cn("w-4 h-4 sm:w-[18px] sm:h-[18px]", disabled && label === 'Uploading...' && "animate-spin")} strokeWidth={2} />
     </button>
   );
 
@@ -499,73 +528,85 @@ export const Toolbar = React.forwardRef<ToolbarHandle, ToolbarProps>(({ editor, 
     <>
       <div className="flex items-center gap-0 sm:gap-0.5 p-1.5 sm:p-2 bg-white/95 dark:bg-stone-800/95 backdrop-blur-md border border-stone-200/80 dark:border-stone-700/80 shadow-lg rounded-xl sm:rounded-2xl transition-colors duration-200">
 
+        {/* Formatting buttons — hidden on mobile (Markdown covers these) */}
+        <div className="hidden sm:contents">
+          <ToolbarButton
+            onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
+            isActive={editor.isActive('heading', { level: 1 })}
+            icon={Heading1}
+            label="Heading 1"
+          />
+
+          <ToolbarButton
+            onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
+            isActive={editor.isActive('heading', { level: 2 })}
+            icon={Heading2}
+            label="Heading 2"
+          />
+
+          <Divider />
+
+          <ToolbarButton
+            onClick={() => editor.chain().focus().toggleBold().run()}
+            isActive={editor.isActive('bold')}
+            icon={Bold}
+            label="Bold"
+          />
+
+          <ToolbarButton
+            onClick={() => editor.chain().focus().toggleItalic().run()}
+            isActive={editor.isActive('italic')}
+            icon={Italic}
+            label="Italic"
+          />
+
+          <ToolbarButton
+            onClick={() => editor.chain().focus().toggleUnderline().run()}
+            isActive={editor.isActive('underline')}
+            icon={Underline}
+            label="Underline"
+          />
+
+          <Divider />
+
+          <ToolbarButton
+            onClick={() => {
+              if (editor.isActive('taskList')) {
+                convertSingleItem(editor, 'taskList', 'bulletList');
+                editor.commands.focus();
+              } else {
+                editor.chain().focus().toggleBulletList().run();
+              }
+            }}
+            isActive={editor.isActive('bulletList')}
+            icon={List}
+            label="Bullet List"
+          />
+
+          <ToolbarButton
+            onClick={() => {
+              if (editor.isActive('bulletList')) {
+                convertSingleItem(editor, 'bulletList', 'taskList');
+                editor.commands.focus();
+              } else {
+                editor.chain().focus().toggleTaskList().run();
+              }
+            }}
+            isActive={editor.isActive('taskList')}
+            icon={ListTodo}
+            label="Task List"
+          />
+
+          <Divider />
+        </div>
+
+        {/* Always-visible buttons (mobile + desktop) */}
         <ToolbarButton
-          onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
-          isActive={editor.isActive('heading', { level: 1 })}
-          icon={Heading1}
-          label="Heading 1"
-        />
-
-        <ToolbarButton
-          onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
-          isActive={editor.isActive('heading', { level: 2 })}
-          icon={Heading2}
-          label="Heading 2"
-        />
-
-        <Divider />
-
-        <ToolbarButton
-          onClick={() => editor.chain().focus().toggleBold().run()}
-          isActive={editor.isActive('bold')}
-          icon={Bold}
-          label="Bold"
-        />
-
-        <ToolbarButton
-          onClick={() => editor.chain().focus().toggleItalic().run()}
-          isActive={editor.isActive('italic')}
-          icon={Italic}
-          label="Italic"
-        />
-
-        <ToolbarButton
-          onClick={() => editor.chain().focus().toggleUnderline().run()}
-          isActive={editor.isActive('underline')}
-          icon={Underline}
-          label="Underline"
-        />
-
-        <Divider />
-
-        <ToolbarButton
-          onClick={() => {
-            if (editor.isActive('taskList')) {
-              // Convert just this task item to a bullet
-              convertSingleItem(editor, 'taskList', 'bulletList');
-              editor.commands.focus();
-            } else {
-              editor.chain().focus().toggleBulletList().run();
-            }
-          }}
-          isActive={editor.isActive('bulletList')}
-          icon={List}
-          label="Bullet List"
-        />
-
-        <ToolbarButton
-          onClick={() => {
-            if (editor.isActive('bulletList')) {
-              // Convert just this bullet to a task item
-              convertSingleItem(editor, 'bulletList', 'taskList');
-              editor.commands.focus();
-            } else {
-              editor.chain().focus().toggleTaskList().run();
-            }
-          }}
-          isActive={editor.isActive('taskList')}
-          icon={ListTodo}
-          label="Task List"
+          onClick={() => isOnline && !isUploading && imageInputRef.current?.click()}
+          icon={isUploading ? Loader2 : ImagePlus}
+          label={!isOnline ? 'Connect to upload images' : isUploading ? 'Uploading...' : 'Add Image'}
+          isActive={false}
+          disabled={!isOnline || isUploading}
         />
 
         <ToolbarButton
@@ -574,8 +615,6 @@ export const Toolbar = React.forwardRef<ToolbarHandle, ToolbarProps>(({ editor, 
           icon={LinkIcon}
           label={editor.isActive('link') ? "Edit Link" : "Add Link"}
         />
-
-        <Divider />
 
         {noteId && (
           <ToolbarButton
@@ -589,6 +628,14 @@ export const Toolbar = React.forwardRef<ToolbarHandle, ToolbarProps>(({ editor, 
           onClick={copyAsMarkdown}
           icon={Copy}
           label="Copy as Markdown"
+        />
+
+        <input
+          ref={imageInputRef}
+          type="file"
+          accept="image/jpeg,image/png,image/gif,image/webp"
+          className="hidden"
+          onChange={handleImageUpload}
         />
       </div>
 

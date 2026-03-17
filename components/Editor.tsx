@@ -6,6 +6,7 @@ import Underline from '@tiptap/extension-underline';
 import Placeholder from '@tiptap/extension-placeholder';
 import TaskList from '@tiptap/extension-task-list';
 import TaskItem from '@tiptap/extension-task-item';
+import Image from '@tiptap/extension-image';
 import { markInputRule } from '@tiptap/core';
 import { Plugin, PluginKey } from '@tiptap/pm/state';
 import { DOMSerializer } from '@tiptap/pm/model';
@@ -106,6 +107,12 @@ export const Editor: React.FC<EditorProps> = ({ noteId, isShared = false }) => {
         autolink: true,
       }),
       Underline,
+      Image.configure({
+        HTMLAttributes: {
+          class: 'editor-image',
+        },
+        allowBase64: false,
+      }),
       TaskList.configure({
         HTMLAttributes: {
           class: 'task-list',
