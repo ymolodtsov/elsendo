@@ -5,60 +5,76 @@ import { nanoid } from 'nanoid';
 const supabaseUrl = process.env.VITE_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_KEY!;
 
+const ALLOWED_TYPES: Record<string, string> = {
+  'image/jpeg': 'jpg',
+  'image/png': 'png',
+  'image/gif': 'gif',
+  'image/webp': 'webp',
+};
+
+const MAX_SIZE = 10 * 1024 * 1024; // 10MB
+
 export const config = {
   api: {
     bodyParser: false,
   },
 };
 
-async function parseMultipart(req: VercelRequest): Promise<{ buffer: Buffer; mimeType: string; ext: string } | null> {
-  return new Promise((resolve) => {
+function readBody(req: VercelRequest): Promise<Buffer> {
+  return new Promise((resolve, reject) => {
     const chunks: Buffer[] = [];
-    req.on('data', (chunk: Buffer) => chunks.push(chunk));
-    req.on('end', () => {
-      const body = Buffer.concat(chunks);
-      const contentType = req.headers['content-type'] || '';
-
-      if (contentType.startsWith('image/')) {
-        // Direct binary upload with Content-Type header
-        const mimeType = contentType.split(';')[0].trim();
-        const ext = mimeType.split('/')[1] === 'jpeg' ? 'jpg' : mimeType.split('/')[1];
-        resolve({ buffer: body, mimeType, ext });
+    let size = 0;
+    req.on('data', (chunk: Buffer) => {
+      size += chunk.length;
+      if (size > MAX_SIZE + 1024 * 100) {
+        // Allow slight overhead for multipart headers
+        reject(new Error('Body too large'));
+        req.destroy();
         return;
       }
-
-      // Multipart form data
-      const boundary = contentType.split('boundary=')[1];
-      if (!boundary) { resolve(null); return; }
-
-      const bodyStr = body.toString('latin1');
-      const parts = bodyStr.split(`--${boundary}`);
-
-      for (const part of parts) {
-        const headerEnd = part.indexOf('\r\n\r\n');
-        if (headerEnd === -1) continue;
-
-        const headers = part.slice(0, headerEnd);
-        if (!headers.includes('filename=')) continue;
-
-        const mimeMatch = headers.match(/Content-Type:\s*(\S+)/i);
-        if (!mimeMatch) continue;
-
-        const mimeType = mimeMatch[1].trim();
-        const allowed = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
-        if (!allowed.includes(mimeType)) continue;
-
-        const ext = mimeType.split('/')[1] === 'jpeg' ? 'jpg' : mimeType.split('/')[1];
-        const dataStart = headerEnd + 4;
-        const dataEnd = part.lastIndexOf('\r\n');
-        const fileData = Buffer.from(part.slice(dataStart, dataEnd), 'latin1');
-
-        resolve({ buffer: fileData, mimeType, ext });
-        return;
-      }
-      resolve(null);
+      chunks.push(chunk);
     });
+    req.on('end', () => resolve(Buffer.concat(chunks)));
+    req.on('error', reject);
   });
+}
+
+function extractFileFromMultipart(body: Buffer, boundary: string): { buffer: Buffer; mimeType: string } | null {
+  // Find boundary positions in the raw buffer
+  const boundaryBuf = Buffer.from(`--${boundary}`);
+  const positions: number[] = [];
+  let searchFrom = 0;
+
+  while (true) {
+    const idx = body.indexOf(boundaryBuf, searchFrom);
+    if (idx === -1) break;
+    positions.push(idx);
+    searchFrom = idx + boundaryBuf.length;
+  }
+
+  for (let i = 0; i < positions.length - 1; i++) {
+    const partStart = positions[i] + boundaryBuf.length + 2; // skip boundary + \r\n
+    const partEnd = positions[i + 1] - 2; // before \r\n before next boundary
+
+    // Find the header/body separator (\r\n\r\n)
+    const separator = Buffer.from('\r\n\r\n');
+    const sepIdx = body.indexOf(separator, partStart);
+    if (sepIdx === -1 || sepIdx >= partEnd) continue;
+
+    const headerStr = body.slice(partStart, sepIdx).toString('utf-8');
+    if (!headerStr.includes('filename=')) continue;
+
+    const mimeMatch = headerStr.match(/Content-Type:\s*([^\s;]+)/i);
+    if (!mimeMatch) continue;
+
+    const mimeType = mimeMatch[1].toLowerCase();
+    if (!ALLOWED_TYPES[mimeType]) continue;
+
+    const fileData = body.slice(sepIdx + 4, partEnd);
+    return { buffer: fileData, mimeType };
+  }
+
+  return null;
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -80,23 +96,47 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(401).json({ error: 'Invalid token' });
   }
 
-  const parsed = await parseMultipart(req);
-  if (!parsed) {
-    return res.status(400).json({ error: 'No valid image found' });
-  }
-
-  const { buffer, mimeType, ext } = parsed;
-
-  // 10MB limit
-  if (buffer.length > 10 * 1024 * 1024) {
+  let body: Buffer;
+  try {
+    body = await readBody(req);
+  } catch {
     return res.status(413).json({ error: 'Image too large (max 10MB)' });
   }
 
+  const contentType = (req.headers['content-type'] || '').split(';')[0].trim().toLowerCase();
+
+  let fileBuffer: Buffer;
+  let mimeType: string;
+
+  if (ALLOWED_TYPES[contentType]) {
+    // Direct binary upload
+    fileBuffer = body;
+    mimeType = contentType;
+  } else {
+    // Multipart form data
+    const boundary = (req.headers['content-type'] || '').match(/boundary=(.+)/)?.[1];
+    if (!boundary) {
+      return res.status(400).json({ error: 'No valid image found' });
+    }
+
+    const extracted = extractFileFromMultipart(body, boundary);
+    if (!extracted) {
+      return res.status(400).json({ error: 'No valid image found' });
+    }
+    fileBuffer = extracted.buffer;
+    mimeType = extracted.mimeType;
+  }
+
+  if (fileBuffer.length > MAX_SIZE) {
+    return res.status(413).json({ error: 'Image too large (max 10MB)' });
+  }
+
+  const ext = ALLOWED_TYPES[mimeType];
   const filePath = `${user.id}/${nanoid()}.${ext}`;
 
   const { error: uploadError } = await supabase.storage
     .from('note-images')
-    .upload(filePath, buffer, {
+    .upload(filePath, fileBuffer, {
       contentType: mimeType,
       upsert: false,
     });
