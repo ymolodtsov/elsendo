@@ -38,7 +38,9 @@ interface NotesContextType {
   deleteNote: (id: string) => Promise<boolean>;
   archiveNote: (id: string) => Promise<boolean>;
   unarchiveNote: (id: string) => Promise<boolean>;
+  getShareLink: (noteId: string) => Promise<string | null>;
   createShareLink: (noteId: string) => Promise<string | null>;
+  revokeShareLink: (noteId: string) => Promise<boolean>;
   getNoteByShareToken: (shareToken: string) => Promise<Note | null>;
 }
 
@@ -286,6 +288,26 @@ export const NotesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   }, [user]);
 
+  // Get existing active share link for a note
+  const getShareLink = useCallback(async (noteId: string): Promise<string | null> => {
+    if (!user) return null;
+
+    try {
+      const { data, error } = await supabase
+        .from('shared_notes')
+        .select('share_token')
+        .eq('note_id', noteId)
+        .eq('user_id', user.id)
+        .eq('is_active', true)
+        .maybeSingle();
+
+      if (error) throw error;
+      return data?.share_token || null;
+    } catch {
+      return null;
+    }
+  }, [user]);
+
   // Create a share link for a note
   const createShareLink = useCallback(async (noteId: string): Promise<string | null> => {
     if (!user) return null;
@@ -309,6 +331,27 @@ export const NotesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       const errorMessage = err instanceof Error ? err.message : 'Failed to create share link';
       setError(errorMessage);
       return null;
+    }
+  }, [user]);
+
+  // Revoke sharing for a note
+  const revokeShareLink = useCallback(async (noteId: string): Promise<boolean> => {
+    if (!user) return false;
+
+    try {
+      const { error } = await supabase
+        .from('shared_notes')
+        .update({ is_active: false })
+        .eq('note_id', noteId)
+        .eq('user_id', user.id)
+        .eq('is_active', true);
+
+      if (error) throw error;
+      return true;
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to revoke share link';
+      setError(errorMessage);
+      return false;
     }
   }, [user]);
 
@@ -474,7 +517,9 @@ export const NotesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     deleteNote,
     archiveNote,
     unarchiveNote,
+    getShareLink,
     createShareLink,
+    revokeShareLink,
     getNoteByShareToken,
   }), [
     notes,
@@ -492,7 +537,9 @@ export const NotesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     deleteNote,
     archiveNote,
     unarchiveNote,
+    getShareLink,
     createShareLink,
+    revokeShareLink,
     getNoteByShareToken,
   ]);
 

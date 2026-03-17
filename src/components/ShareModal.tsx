@@ -1,17 +1,19 @@
 import React, { useState, useEffect } from 'react';
-import { X, Copy, Check, Link2 } from 'lucide-react';
+import { X, Copy, Check, Link2, Link2Off } from 'lucide-react';
 
 interface ShareModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onRevoke: () => void;
   shareUrl: string;
 }
 
-export const ShareModal: React.FC<ShareModalProps> = ({ isOpen, onClose, shareUrl }) => {
+export const ShareModal: React.FC<ShareModalProps> = ({ isOpen, onClose, onRevoke, shareUrl }) => {
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     if (!isOpen) return;
+    setCopied(false);
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         e.preventDefault();
@@ -96,6 +98,16 @@ export const ShareModal: React.FC<ShareModalProps> = ({ isOpen, onClose, shareUr
               Link copied to clipboard!
             </p>
           )}
+
+          <div className="mt-4 pt-4 border-t border-stone-100 dark:border-stone-700">
+            <button
+              onClick={onRevoke}
+              className="w-full px-4 py-2.5 text-sm font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-colors flex items-center justify-center gap-2"
+            >
+              <Link2Off className="w-4 h-4" strokeWidth={2} />
+              Stop sharing
+            </button>
+          </div>
         </div>
       </div>
     </div>

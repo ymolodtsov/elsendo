@@ -316,7 +316,7 @@ export const Toolbar = React.forwardRef<ToolbarHandle, ToolbarProps>(({ editor, 
   const [showCopiedToast, setShowCopiedToast] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const imageInputRef = useRef<HTMLInputElement>(null);
-  const { createShareLink } = useNotes();
+  const { getShareLink, createShareLink, revokeShareLink } = useNotes();
   const { isOnline } = useConnectivity();
 
   // Track the last known selection - updated on every selection change
@@ -374,11 +374,27 @@ export const Toolbar = React.forwardRef<ToolbarHandle, ToolbarProps>(({ editor, 
   const handleShare = async () => {
     if (!noteId) return;
 
+    // Check for existing share link first
+    const existingToken = await getShareLink(noteId);
+    if (existingToken) {
+      setShareUrl(`${window.location.origin}/shared/${existingToken}`);
+      setIsShareModalOpen(true);
+      return;
+    }
+
     const shareToken = await createShareLink(noteId);
     if (shareToken) {
-      const url = `${window.location.origin}/shared/${shareToken}`;
-      setShareUrl(url);
+      setShareUrl(`${window.location.origin}/shared/${shareToken}`);
       setIsShareModalOpen(true);
+    }
+  };
+
+  const handleRevokeShare = async () => {
+    if (!noteId) return;
+    const success = await revokeShareLink(noteId);
+    if (success) {
+      setIsShareModalOpen(false);
+      setShareUrl('');
     }
   };
 
@@ -597,7 +613,6 @@ export const Toolbar = React.forwardRef<ToolbarHandle, ToolbarProps>(({ editor, 
             label="Task List"
           />
 
-          <Divider />
         </div>
 
         {/* Always-visible buttons (mobile + desktop) */}
@@ -615,6 +630,8 @@ export const Toolbar = React.forwardRef<ToolbarHandle, ToolbarProps>(({ editor, 
           icon={LinkIcon}
           label={editor.isActive('link') ? "Edit Link" : "Add Link"}
         />
+
+        <Divider />
 
         {noteId && (
           <ToolbarButton
@@ -649,6 +666,7 @@ export const Toolbar = React.forwardRef<ToolbarHandle, ToolbarProps>(({ editor, 
       <ShareModal
         isOpen={isShareModalOpen}
         onClose={() => setIsShareModalOpen(false)}
+        onRevoke={handleRevokeShare}
         shareUrl={shareUrl}
       />
 
