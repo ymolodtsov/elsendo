@@ -374,19 +374,25 @@ export const Toolbar = React.forwardRef<ToolbarHandle, ToolbarProps>(({ editor, 
   const handleShare = async () => {
     if (!noteId) return;
 
-    // Check for existing share link first
+    // Check for existing share link — open modal with or without URL
     const existingToken = await getShareLink(noteId);
     if (existingToken) {
       setShareUrl(`${window.location.origin}/shared/${existingToken}`);
-      setIsShareModalOpen(true);
-      return;
+    } else {
+      setShareUrl('');
     }
+    setIsShareModalOpen(true);
+  };
 
+  const handleCreateShareLink = async (): Promise<string | null> => {
+    if (!noteId) return null;
     const shareToken = await createShareLink(noteId);
     if (shareToken) {
-      setShareUrl(`${window.location.origin}/shared/${shareToken}`);
-      setIsShareModalOpen(true);
+      const url = `${window.location.origin}/shared/${shareToken}`;
+      setShareUrl(url);
+      return url;
     }
+    return null;
   };
 
   const handleRevokeShare = async () => {
@@ -666,8 +672,9 @@ export const Toolbar = React.forwardRef<ToolbarHandle, ToolbarProps>(({ editor, 
       <ShareModal
         isOpen={isShareModalOpen}
         onClose={() => setIsShareModalOpen(false)}
+        onShare={handleCreateShareLink}
         onRevoke={handleRevokeShare}
-        shareUrl={shareUrl}
+        shareUrl={shareUrl || null}
       />
 
       <LinkMenu

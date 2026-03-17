@@ -1,15 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { X, Copy, Check, Link2, Link2Off } from 'lucide-react';
+import { X, Copy, Check, Link2, Link2Off, Share2 } from 'lucide-react';
 
 interface ShareModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onShare: () => Promise<string | null>;
   onRevoke: () => void;
-  shareUrl: string;
+  shareUrl: string | null;
 }
 
-export const ShareModal: React.FC<ShareModalProps> = ({ isOpen, onClose, onRevoke, shareUrl }) => {
+export const ShareModal: React.FC<ShareModalProps> = ({ isOpen, onClose, onShare, onRevoke, shareUrl }) => {
   const [copied, setCopied] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -27,6 +29,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({ isOpen, onClose, onRevok
   if (!isOpen) return null;
 
   const handleCopy = async () => {
+    if (!shareUrl) return;
     try {
       await navigator.clipboard.writeText(shareUrl);
       setCopied(true);
@@ -35,6 +38,14 @@ export const ShareModal: React.FC<ShareModalProps> = ({ isOpen, onClose, onRevok
       console.error('Failed to copy:', error);
     }
   };
+
+  const handleShare = async () => {
+    setIsCreating(true);
+    await onShare();
+    setIsCreating(false);
+  };
+
+  const isShared = !!shareUrl;
 
   return (
     <div className="fixed inset-0 z-[70] flex items-center justify-center bg-stone-900/20 dark:bg-stone-900/50 backdrop-blur-sm p-4 animate-fade-in">
@@ -58,56 +69,75 @@ export const ShareModal: React.FC<ShareModalProps> = ({ isOpen, onClose, onRevok
         </div>
 
         <div className="p-5">
-          <p className="text-sm text-stone-500 dark:text-stone-400 mb-4">
-            Anyone with this link can view this note (read-only)
-          </p>
+          {isShared ? (
+            <>
+              <p className="text-sm text-stone-500 dark:text-stone-400 mb-4">
+                Anyone with this link can view this note (read-only)
+              </p>
 
-          <div className="flex items-center gap-2">
-            <input
-              type="text"
-              value={shareUrl}
-              readOnly
-              className="flex-1 px-4 py-3 bg-stone-50 dark:bg-stone-900 border border-stone-200 dark:border-stone-700 rounded-xl text-stone-700 dark:text-stone-100 text-sm focus:outline-none focus:ring-2 focus:ring-stone-400/50"
-            />
-            <button
-              onClick={handleCopy}
-              className={`px-4 py-3 rounded-xl transition-all shadow flex items-center gap-2 text-sm font-medium active:scale-[0.98] ${
-                copied
-                  ? 'bg-green-600 text-white'
-                  : 'bg-stone-800 hover:bg-stone-700 text-white hover:shadow-md'
-              }`}
-              aria-label="Copy link"
-            >
-              {copied ? (
-                <>
-                  <Check className="w-4 h-4" strokeWidth={2} />
-                  <span>Copied</span>
-                </>
-              ) : (
-                <>
-                  <Copy className="w-4 h-4" strokeWidth={2} />
-                  <span>Copy</span>
-                </>
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  value={shareUrl}
+                  readOnly
+                  className="flex-1 px-4 py-3 bg-stone-50 dark:bg-stone-900 border border-stone-200 dark:border-stone-700 rounded-xl text-stone-700 dark:text-stone-100 text-sm focus:outline-none focus:ring-2 focus:ring-stone-400/50"
+                />
+                <button
+                  onClick={handleCopy}
+                  className={`px-4 py-3 rounded-xl transition-all shadow flex items-center gap-2 text-sm font-medium active:scale-[0.98] ${
+                    copied
+                      ? 'bg-green-600 text-white'
+                      : 'bg-stone-800 hover:bg-stone-700 text-white hover:shadow-md'
+                  }`}
+                  aria-label="Copy link"
+                >
+                  {copied ? (
+                    <>
+                      <Check className="w-4 h-4" strokeWidth={2} />
+                      <span>Copied</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-4 h-4" strokeWidth={2} />
+                      <span>Copy</span>
+                    </>
+                  )}
+                </button>
+              </div>
+
+              {copied && (
+                <p className="mt-3 text-xs text-green-600 dark:text-green-400 flex items-center gap-1.5">
+                  <Check className="w-3 h-3" strokeWidth={2.5} />
+                  Link copied to clipboard!
+                </p>
               )}
-            </button>
-          </div>
 
-          {copied && (
-            <p className="mt-3 text-xs text-green-600 dark:text-green-400 flex items-center gap-1.5">
-              <Check className="w-3 h-3" strokeWidth={2.5} />
-              Link copied to clipboard!
-            </p>
+              <div className="mt-4 pt-4 border-t border-stone-100 dark:border-stone-700">
+                <button
+                  onClick={onRevoke}
+                  className="w-full px-4 py-2.5 text-sm font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-colors flex items-center justify-center gap-2"
+                >
+                  <Link2Off className="w-4 h-4" strokeWidth={2} />
+                  Stop sharing
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              <p className="text-sm text-stone-500 dark:text-stone-400 mb-5">
+                Create a public link so anyone can view this note (read-only). You can revoke the link at any time.
+              </p>
+
+              <button
+                onClick={handleShare}
+                disabled={isCreating}
+                className="w-full px-4 py-3 text-sm font-medium bg-stone-800 hover:bg-stone-700 text-white rounded-xl transition-all shadow hover:shadow-md flex items-center justify-center gap-2 active:scale-[0.98] disabled:opacity-60"
+              >
+                <Share2 className="w-4 h-4" strokeWidth={2} />
+                {isCreating ? 'Creating link...' : 'Create share link'}
+              </button>
+            </>
           )}
-
-          <div className="mt-4 pt-4 border-t border-stone-100 dark:border-stone-700">
-            <button
-              onClick={onRevoke}
-              className="w-full px-4 py-2.5 text-sm font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-colors flex items-center justify-center gap-2"
-            >
-              <Link2Off className="w-4 h-4" strokeWidth={2} />
-              Stop sharing
-            </button>
-          </div>
         </div>
       </div>
     </div>
