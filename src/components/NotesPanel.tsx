@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { Note } from '../types';
 import { formatDistanceToNow } from 'date-fns';
 import { Trash2, Plus, LogOut, Archive, ArchiveRestore, ArrowLeft } from 'lucide-react';
@@ -24,6 +24,7 @@ const extractTitleFromContent = (content: string): string => {
 
 interface NotesPanelProps {
   notes: Note[];
+  currentNoteId?: string;
   onSelectNote: (id: string) => void;
   onDeleteNote: (id: string) => void;
   onNewNote: () => void;
@@ -31,11 +32,11 @@ interface NotesPanelProps {
 
 export const NotesPanel: React.FC<NotesPanelProps> = React.memo(({
   notes,
+  currentNoteId: noteId,
   onSelectNote,
   onDeleteNote,
   onNewNote,
 }) => {
-  const { noteId } = useParams();
   const navigate = useNavigate();
   const { signOut } = useAuth();
   const { archivedNotes, showArchive, setShowArchive, archiveNote, unarchiveNote, getArchivedNotes } = useNotes();

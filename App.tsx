@@ -157,6 +157,7 @@ const AuthenticatedApp: React.FC = () => {
         {isNotesOpen && (
           <NotesPanel
             notes={notes}
+            currentNoteId={location.pathname.match(/\/note\/(.+)/)?.[1]}
             onSelectNote={handleSelectNote}
             onDeleteNote={handleDeleteNote}
             onNewNote={handleNewNote}
