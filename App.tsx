@@ -239,12 +239,14 @@ const HomeRedirect: React.FC<{ notes: any[]; loading: boolean; onNewNote: () => 
 // Editor route component
 const EditorRoute: React.FC = () => {
   const { noteId } = useParams();
+  const { notes } = useNotes();
 
+  // Only persist non-archived notes as the last-opened note
   useEffect(() => {
-    if (noteId) {
+    if (noteId && notes.some(n => n.id === noteId)) {
       localStorage.setItem('elsendo-last-note', noteId);
     }
-  }, [noteId]);
+  }, [noteId, notes]);
 
   if (!noteId) {
     return <Navigate to="/" replace />;

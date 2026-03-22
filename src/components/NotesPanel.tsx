@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { Note } from '../types';
 import { formatDistanceToNow } from 'date-fns';
 import { Trash2, Plus, LogOut, Archive, ArchiveRestore, ArrowLeft } from 'lucide-react';
@@ -36,6 +36,7 @@ export const NotesPanel: React.FC<NotesPanelProps> = React.memo(({
   onNewNote,
 }) => {
   const { noteId } = useParams();
+  const navigate = useNavigate();
   const { signOut } = useAuth();
   const { archivedNotes, showArchive, setShowArchive, archiveNote, unarchiveNote, getArchivedNotes } = useNotes();
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -183,6 +184,16 @@ export const NotesPanel: React.FC<NotesPanelProps> = React.memo(({
                     await unarchiveNote(note.id);
                   } else {
                     await archiveNote(note.id);
+                    // If archiving the current note, clear it from last-note and navigate away
+                    if (note.id === noteId) {
+                      localStorage.removeItem('elsendo-last-note');
+                      const remaining = notes.filter(n => n.id !== note.id);
+                      if (remaining.length > 0) {
+                        navigate(`/note/${remaining[0].id}`, { replace: true });
+                      } else {
+                        navigate('/', { replace: true });
+                      }
+                    }
                   }
                   // Don't clear animatingOut - item will be removed from list anyway
                 }, 250);
@@ -203,8 +214,8 @@ export const NotesPanel: React.FC<NotesPanelProps> = React.memo(({
                     group px-4 py-2.5 cursor-pointer
                     transition-colors duration-150
                     ${isActive
-                      ? 'bg-stone-100 dark:bg-stone-700'
-                      : 'hover:bg-stone-50 dark:hover:bg-stone-700/50'
+                      ? 'bg-stone-100 dark:bg-stone-700 border-l-2 border-stone-400 dark:border-stone-400'
+                      : 'hover:bg-stone-50 dark:hover:bg-stone-700/50 border-l-2 border-transparent'
                     }
                     ${animationClass}
                   `}
