@@ -374,14 +374,18 @@ export const Toolbar = React.forwardRef<ToolbarHandle, ToolbarProps>(({ editor, 
   const handleShare = async () => {
     if (!noteId) return;
 
-    // Check for existing share link — open modal with or without URL
-    const existingToken = await getShareLink(noteId);
-    if (existingToken) {
-      setShareUrl(`${window.location.origin}/shared/${existingToken}`);
-    } else {
-      setShareUrl('');
+    try {
+      // Check for existing share link — open modal with or without URL
+      const existingToken = await getShareLink(noteId);
+      if (existingToken) {
+        setShareUrl(`${window.location.origin}/shared/${existingToken}`);
+      } else {
+        setShareUrl('');
+      }
+      setIsShareModalOpen(true);
+    } catch (err) {
+      console.error('Failed to check share link:', err);
     }
-    setIsShareModalOpen(true);
   };
 
   const handleCreateShareLink = async (): Promise<string | null> => {
@@ -605,23 +609,24 @@ export const Toolbar = React.forwardRef<ToolbarHandle, ToolbarProps>(({ editor, 
             label="Bullet List"
           />
 
-          <ToolbarButton
-            onClick={() => {
-              if (editor.isActive('bulletList')) {
-                convertSingleItem(editor, 'bulletList', 'taskList');
-                editor.commands.focus();
-              } else {
-                editor.chain().focus().toggleTaskList().run();
-              }
-            }}
-            isActive={editor.isActive('taskList')}
-            icon={ListTodo}
-            label="Task List"
-          />
 
         </div>
 
         {/* Always-visible buttons (mobile + desktop) */}
+        <ToolbarButton
+          onClick={() => {
+            if (editor.isActive('bulletList')) {
+              convertSingleItem(editor, 'bulletList', 'taskList');
+              editor.commands.focus();
+            } else {
+              editor.chain().focus().toggleTaskList().run();
+            }
+          }}
+          isActive={editor.isActive('taskList')}
+          icon={ListTodo}
+          label="Task List"
+        />
+
         <ToolbarButton
           onClick={() => isOnline && !isUploading && imageInputRef.current?.click()}
           icon={isUploading ? Loader2 : ImagePlus}

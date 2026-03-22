@@ -12,7 +12,7 @@ import {
 } from '../lib/offlineQueue';
 
 // Share token validation: alphanumeric + dash/underscore, 32 chars
-const SHARE_TOKEN_REGEX = /^[A-Za-z0-9_-]{32}$/;
+const SHARE_TOKEN_REGEX = /^[A-Za-z0-9_-]{21,32}$/;
 
 export interface SyncConflict {
   noteId: string;

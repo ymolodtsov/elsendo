@@ -44,13 +44,15 @@ export const NotesPanel: React.FC<NotesPanelProps> = React.memo(({
 
   // Auto-switch to archive view if the current note is archived
   useEffect(() => {
+    let cancelled = false;
     if (noteId && !notes.some(n => n.id === noteId)) {
       getArchivedNotes().then((archived) => {
-        if (archived.some(n => n.id === noteId)) {
+        if (!cancelled && archived.some(n => n.id === noteId)) {
           setShowArchive(true);
         }
       });
     }
+    return () => { cancelled = true; };
   }, [noteId, notes, getArchivedNotes, setShowArchive]);
 
   const displayedNotes = showArchive ? archivedNotes : notes;
