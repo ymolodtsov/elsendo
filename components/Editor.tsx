@@ -29,7 +29,7 @@ export const Editor: React.FC<EditorProps> = ({ noteId, isShared = false }) => {
   const toolbarRef = useRef<ToolbarHandle>(null);
   const editorContainerRef = useRef<HTMLDivElement>(null);
 
-  const { save, isSaving, isSaved } = useAutoSave({
+  const { save, isSaving, isSaved, showStatus } = useAutoSave({
     onSave: async (content: string) => {
       if (!isShared) {
         const doc = new DOMParser().parseFromString(content, 'text/html');
@@ -233,7 +233,7 @@ export const Editor: React.FC<EditorProps> = ({ noteId, isShared = false }) => {
               border border-stone-200/50 dark:border-stone-700/50
               shadow
               transition-all duration-500
-              ${isSaved ? 'opacity-0 translate-y-2' : 'opacity-100 translate-y-0'}
+              ${showStatus ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'}
             `}
           >
             {isSaving ? (

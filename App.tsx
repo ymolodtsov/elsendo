@@ -191,31 +191,47 @@ const AuthenticatedApp: React.FC = () => {
   );
 };
 
-// Redirect to the most recent note or create one if none exist
+// Redirect to the most recent note or show empty state
 const HomeRedirect: React.FC<{ notes: any[]; loading: boolean; onNewNote: () => void }> = ({ notes, loading, onNewNote }) => {
   const navigate = useNavigate();
-  const creatingRef = useRef(false);
 
   useEffect(() => {
     if (loading) return;
 
     if (notes.length > 0) {
       navigate(`/note/${notes[0].id}`, { replace: true });
-    } else if (!creatingRef.current) {
-      // Auto-create a note when there are none
-      creatingRef.current = true;
-      onNewNote();
     }
-  }, [notes, loading, navigate, onNewNote]);
+  }, [notes, loading, navigate]);
 
-  // Always show loading state while waiting for notes or creating
-  return (
-    <div className="flex items-center justify-center h-full">
-      <div className="flex flex-col items-center gap-4 animate-fade-in">
-        <div className="w-8 h-8 border-2 border-stone-200 border-t-stone-500 rounded-full animate-spin" />
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="flex flex-col items-center gap-4 animate-fade-in">
+          <div className="w-8 h-8 border-2 border-stone-200 border-t-stone-500 rounded-full animate-spin" />
+        </div>
       </div>
-    </div>
-  );
+    );
+  }
+
+  // No notes — show empty state
+  if (notes.length === 0) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="flex flex-col items-center gap-4 text-center">
+          <Feather className="w-10 h-10 text-stone-300 dark:text-stone-600" strokeWidth={1.5} />
+          <p className="text-stone-400 dark:text-stone-500 text-sm">No notes yet</p>
+          <button
+            onClick={onNewNote}
+            className="mt-2 px-4 py-2 bg-stone-800 text-white text-sm rounded-lg hover:bg-stone-700 transition-colors"
+          >
+            Create your first note
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return null;
 };
 
 // Editor route component
