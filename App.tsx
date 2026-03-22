@@ -198,10 +198,11 @@ const HomeRedirect: React.FC<{ notes: any[]; loading: boolean; onNewNote: () => 
   useEffect(() => {
     if (loading) return;
 
-    if (notes.length > 0) {
-      const lastNoteId = localStorage.getItem('elsendo-last-note');
-      const noteExists = lastNoteId && notes.some(n => n.id === lastNoteId);
-      navigate(`/note/${noteExists ? lastNoteId : notes[0].id}`, { replace: true });
+    const lastNoteId = localStorage.getItem('elsendo-last-note');
+    if (lastNoteId) {
+      navigate(`/note/${lastNoteId}`, { replace: true });
+    } else if (notes.length > 0) {
+      navigate(`/note/${notes[0].id}`, { replace: true });
     }
   }, [notes, loading, navigate]);
 
@@ -239,14 +240,11 @@ const HomeRedirect: React.FC<{ notes: any[]; loading: boolean; onNewNote: () => 
 // Editor route component
 const EditorRoute: React.FC = () => {
   const { noteId } = useParams();
-  const { notes } = useNotes();
-
-  // Only persist non-archived notes as the last-opened note
   useEffect(() => {
-    if (noteId && notes.some(n => n.id === noteId)) {
+    if (noteId) {
       localStorage.setItem('elsendo-last-note', noteId);
     }
-  }, [noteId, notes]);
+  }, [noteId]);
 
   if (!noteId) {
     return <Navigate to="/" replace />;
