@@ -196,22 +196,8 @@ const AuthenticatedApp: React.FC = () => {
   );
 };
 
-// Redirect to the most recent note or show empty state
+// Redirect to the last-opened note or show empty state
 const HomeRedirect: React.FC<{ notes: any[]; loading: boolean; onNewNote: () => void }> = ({ notes, loading, onNewNote }) => {
-  const navigate = useNavigate();
-
-  useEffect(() => {
-    if (loading) return;
-
-    const lastNoteId = localStorage.getItem('elsendo-last-note');
-    if (lastNoteId) {
-      navigate(`/note/${lastNoteId}`, { replace: true });
-    } else if (notes.length > 0) {
-      localStorage.setItem('elsendo-last-note', notes[0].id);
-      navigate(`/note/${notes[0].id}`, { replace: true });
-    }
-  }, [notes, loading, navigate]);
-
   if (loading) {
     return (
       <div className="flex items-center justify-center h-full">
@@ -222,25 +208,32 @@ const HomeRedirect: React.FC<{ notes: any[]; loading: boolean; onNewNote: () => 
     );
   }
 
-  // No notes — show empty state
-  if (notes.length === 0) {
-    return (
-      <div className="flex items-center justify-center h-full">
-        <div className="flex flex-col items-center gap-4 text-center">
-          <Feather className="w-10 h-10 text-stone-300 dark:text-stone-600" strokeWidth={1.5} />
-          <p className="text-stone-400 dark:text-stone-500 text-sm">No notes yet</p>
-          <button
-            onClick={onNewNote}
-            className="mt-2 px-4 py-2 bg-stone-800 text-white text-sm rounded-lg hover:bg-stone-700 transition-colors"
-          >
-            Create your first note
-          </button>
-        </div>
-      </div>
-    );
+  // Redirect synchronously via <Navigate> — no useEffect timing issues
+  const lastNoteId = localStorage.getItem('elsendo-last-note');
+  if (lastNoteId) {
+    return <Navigate to={`/note/${lastNoteId}`} replace />;
   }
 
-  return null;
+  if (notes.length > 0) {
+    localStorage.setItem('elsendo-last-note', notes[0].id);
+    return <Navigate to={`/note/${notes[0].id}`} replace />;
+  }
+
+  // No notes — show empty state
+  return (
+    <div className="flex items-center justify-center h-full">
+      <div className="flex flex-col items-center gap-4 text-center">
+        <Feather className="w-10 h-10 text-stone-300 dark:text-stone-600" strokeWidth={1.5} />
+        <p className="text-stone-400 dark:text-stone-500 text-sm">No notes yet</p>
+        <button
+          onClick={onNewNote}
+          className="mt-2 px-4 py-2 bg-stone-800 text-white text-sm rounded-lg hover:bg-stone-700 transition-colors"
+        >
+          Create your first note
+        </button>
+      </div>
+    </div>
+  );
 };
 
 // Editor route component
