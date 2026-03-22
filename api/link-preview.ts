@@ -1,4 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { createClient } from '@supabase/supabase-js';
+import { resolve4, resolve6 } from 'dns/promises';
+import { isIP } from 'net';
 
 interface LinkPreview {
   url: string;
@@ -9,25 +12,38 @@ interface LinkPreview {
   siteName?: string;
 }
 
-// Block internal/private IPs to prevent SSRF
-const BLOCKED_HOSTNAMES = [
-  'localhost',
-  '127.0.0.1',
-  '0.0.0.0',
-  '::1',
-  '[::1]',
-];
+const supabaseUrl = process.env.VITE_SUPABASE_URL!;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_KEY!;
 
-const PRIVATE_IP_RANGES = [
-  /^10\./,
-  /^172\.(1[6-9]|2[0-9]|3[01])\./,
-  /^192\.168\./,
-  /^169\.254\./,
-  /^fc00:/i,
-  /^fe80:/i,
-];
+// Check if an IP is private/reserved
+function isPrivateIP(ip: string): boolean {
+  // IPv4 private/reserved ranges
+  const parts = ip.split('.').map(Number);
+  if (parts.length === 4) {
+    if (parts[0] === 10) return true;                              // 10.0.0.0/8
+    if (parts[0] === 172 && parts[1] >= 16 && parts[1] <= 31) return true; // 172.16.0.0/12
+    if (parts[0] === 192 && parts[1] === 168) return true;        // 192.168.0.0/16
+    if (parts[0] === 127) return true;                             // 127.0.0.0/8
+    if (parts[0] === 169 && parts[1] === 254) return true;        // 169.254.0.0/16
+    if (parts[0] === 0) return true;                               // 0.0.0.0/8
+    if (parts[0] === 100 && parts[1] >= 64 && parts[1] <= 127) return true; // 100.64.0.0/10
+    if (parts[0] === 198 && parts[1] >= 18 && parts[1] <= 19) return true;  // 198.18.0.0/15
+  }
 
-function isBlockedUrl(urlString: string): boolean {
+  // IPv6 private/reserved
+  const lower = ip.toLowerCase();
+  if (lower === '::1') return true;
+  if (lower.startsWith('fc') || lower.startsWith('fd')) return true;  // ULA
+  if (lower.startsWith('fe80')) return true;                           // Link-local
+  if (lower.startsWith('::ffff:')) {
+    // IPv4-mapped IPv6 — check the embedded IPv4
+    return isPrivateIP(lower.replace('::ffff:', ''));
+  }
+
+  return false;
+}
+
+async function isBlockedUrl(urlString: string): Promise<boolean> {
   try {
     const parsed = new URL(urlString);
 
@@ -36,19 +52,35 @@ function isBlockedUrl(urlString: string): boolean {
       return true;
     }
 
-    const hostname = parsed.hostname.toLowerCase();
+    const hostname = parsed.hostname.replace(/^\[|\]$/g, '').toLowerCase();
 
-    // Block known internal hostnames
-    if (BLOCKED_HOSTNAMES.includes(hostname)) {
+    // Block localhost variants
+    if (hostname === 'localhost' || hostname.endsWith('.localhost')) {
       return true;
     }
 
-    // Block private IP ranges
-    if (PRIVATE_IP_RANGES.some(pattern => pattern.test(hostname))) {
-      return true;
+    // If hostname is already an IP, check it directly
+    if (isIP(hostname)) {
+      return isPrivateIP(hostname);
     }
 
-    return false;
+    // Resolve DNS and check all resolved IPs
+    try {
+      const [ipv4s, ipv6s] = await Promise.allSettled([
+        resolve4(hostname),
+        resolve6(hostname),
+      ]);
+
+      const ips: string[] = [];
+      if (ipv4s.status === 'fulfilled') ips.push(...ipv4s.value);
+      if (ipv6s.status === 'fulfilled') ips.push(...ipv6s.value);
+
+      if (ips.length === 0) return true; // Can't resolve — block it
+
+      return ips.some(ip => isPrivateIP(ip));
+    } catch {
+      return true; // DNS resolution failed — block it
+    }
   } catch {
     return true;
   }
@@ -59,14 +91,28 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
+  // Verify user auth
+  const authHeader = req.headers.authorization;
+  if (!authHeader?.startsWith('Bearer ')) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+
+  const token = authHeader.slice(7);
+  const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+  const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+  if (authError || !user) {
+    return res.status(401).json({ error: 'Invalid token' });
+  }
+
   const { url } = req.query;
 
   if (!url || typeof url !== 'string') {
     return res.status(400).json({ error: 'URL is required' });
   }
 
-  // SSRF protection
-  if (isBlockedUrl(url)) {
+  // SSRF protection — resolves DNS to check actual IPs
+  if (await isBlockedUrl(url)) {
     return res.status(400).json({ error: 'Invalid URL' });
   }
 

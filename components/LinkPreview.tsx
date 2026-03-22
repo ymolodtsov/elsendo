@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
+import { useAuth } from '../src/contexts/AuthContext';
 
 interface LinkPreviewData {
   url: string;
@@ -15,7 +16,7 @@ const MAX_CACHE_SIZE = 100;
 const previewCache = new Map<string, LinkPreviewData | null>();
 const pendingRequests = new Map<string, Promise<LinkPreviewData | null>>();
 
-async function fetchLinkPreview(url: string): Promise<LinkPreviewData | null> {
+async function fetchLinkPreview(url: string, accessToken?: string): Promise<LinkPreviewData | null> {
   if (previewCache.has(url)) {
     return previewCache.get(url) || null;
   }
@@ -26,7 +27,11 @@ async function fetchLinkPreview(url: string): Promise<LinkPreviewData | null> {
 
   const promise = (async () => {
     try {
-      const response = await fetch(`/api/link-preview?url=${encodeURIComponent(url)}`);
+      const headers: Record<string, string> = {};
+      if (accessToken) {
+        headers['Authorization'] = `Bearer ${accessToken}`;
+      }
+      const response = await fetch(`/api/link-preview?url=${encodeURIComponent(url)}`, { headers });
       if (!response.ok) {
         previewCache.set(url, null);
         return null;
@@ -56,6 +61,7 @@ interface LinkPreviewOverlayProps {
 }
 
 export const LinkPreviewOverlay: React.FC<LinkPreviewOverlayProps> = ({ containerRef }) => {
+  const { session } = useAuth();
   const [preview, setPreview] = useState<LinkPreviewData | null>(null);
   const [position, setPosition] = useState({ top: 0, left: 0 });
   const [isVisible, setIsVisible] = useState(false);
@@ -103,7 +109,7 @@ export const LinkPreviewOverlay: React.FC<LinkPreviewOverlayProps> = ({ containe
 
       // Delay before showing preview
       timeoutRef.current = window.setTimeout(async () => {
-        const data = await fetchLinkPreview(href);
+        const data = await fetchLinkPreview(href, session?.access_token);
 
         // Check if we're still hovering the same link
         if (currentHrefRef.current !== href) return;

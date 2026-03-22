@@ -12,6 +12,27 @@ const ALLOWED_TYPES: Record<string, string> = {
   'image/webp': 'webp',
 };
 
+// Magic byte signatures for image formats
+const MAGIC_BYTES: Record<string, { offset: number; bytes: number[] }[]> = {
+  'image/jpeg': [{ offset: 0, bytes: [0xFF, 0xD8, 0xFF] }],
+  'image/png': [{ offset: 0, bytes: [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A] }],
+  'image/gif': [
+    { offset: 0, bytes: [0x47, 0x49, 0x46, 0x38, 0x37, 0x61] }, // GIF87a
+    { offset: 0, bytes: [0x47, 0x49, 0x46, 0x38, 0x39, 0x61] }, // GIF89a
+  ],
+  'image/webp': [
+    { offset: 0, bytes: [0x52, 0x49, 0x46, 0x46] }, // RIFF header
+  ],
+};
+
+function validateMagicBytes(buffer: Buffer, declaredType: string): boolean {
+  const signatures = MAGIC_BYTES[declaredType];
+  if (!signatures) return false;
+  return signatures.some(sig =>
+    sig.bytes.every((byte, i) => buffer[sig.offset + i] === byte)
+  );
+}
+
 const MAX_SIZE = 10 * 1024 * 1024; // 10MB
 
 export const config = {
@@ -129,6 +150,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   if (fileBuffer.length > MAX_SIZE) {
     return res.status(413).json({ error: 'Image too large (max 10MB)' });
+  }
+
+  // Validate magic bytes match declared MIME type
+  if (!validateMagicBytes(fileBuffer, mimeType)) {
+    return res.status(400).json({ error: 'File content does not match declared image type' });
   }
 
   const ext = ALLOWED_TYPES[mimeType];
