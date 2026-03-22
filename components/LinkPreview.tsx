@@ -10,7 +10,8 @@ interface LinkPreviewData {
   siteName?: string;
 }
 
-// Cache for link previews
+// Cache for link previews (bounded to prevent memory leaks)
+const MAX_CACHE_SIZE = 100;
 const previewCache = new Map<string, LinkPreviewData | null>();
 const pendingRequests = new Map<string, Promise<LinkPreviewData | null>>();
 
@@ -31,6 +32,11 @@ async function fetchLinkPreview(url: string): Promise<LinkPreviewData | null> {
         return null;
       }
       const data = await response.json();
+      if (previewCache.size >= MAX_CACHE_SIZE) {
+        // Evict oldest entry
+        const firstKey = previewCache.keys().next().value;
+        if (firstKey) previewCache.delete(firstKey);
+      }
       previewCache.set(url, data);
       return data;
     } catch {
