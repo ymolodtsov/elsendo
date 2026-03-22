@@ -40,6 +40,17 @@ export const NotesPanel: React.FC<NotesPanelProps> = React.memo(({
   const { archivedNotes, showArchive, setShowArchive, archiveNote, unarchiveNote, getArchivedNotes } = useNotes();
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Auto-switch to archive view if the current note is archived
+  useEffect(() => {
+    if (noteId && !notes.some(n => n.id === noteId)) {
+      getArchivedNotes().then((archived) => {
+        if (archived.some(n => n.id === noteId)) {
+          setShowArchive(true);
+        }
+      });
+    }
+  }, [noteId, notes, getArchivedNotes, setShowArchive]);
+
   const displayedNotes = showArchive ? archivedNotes : notes;
   const [animatingOut, setAnimatingOut] = useState<{ id: string; type: 'archive' | 'delete' } | null>(null);
   const [confirmDialog, setConfirmDialog] = useState<{
