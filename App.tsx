@@ -94,7 +94,6 @@ const AuthenticatedApp: React.FC = () => {
     });
 
     if (newNote) {
-      localStorage.setItem('elsendo-last-note', newNote.id);
       navigate(`/note/${newNote.id}`);
       setIsNotesOpen(false);
     }
@@ -112,17 +111,14 @@ const AuthenticatedApp: React.FC = () => {
     if (isCurrentNote) {
       const remainingNotes = notes.filter(n => n.id !== id);
       if (remainingNotes.length > 0) {
-        localStorage.setItem('elsendo-last-note', remainingNotes[0].id);
         navigate(`/note/${remainingNotes[0].id}`);
       } else {
-        localStorage.removeItem('elsendo-last-note');
         navigate('/');
       }
     }
   };
 
   const handleSelectNote = (id: string) => {
-    localStorage.setItem('elsendo-last-note', id);
     navigate(`/note/${id}`);
     setIsNotesOpen(false);
   };
@@ -196,7 +192,7 @@ const AuthenticatedApp: React.FC = () => {
   );
 };
 
-// Redirect to the last-opened note or show empty state
+// Open the most recently edited note, or show empty state
 const HomeRedirect: React.FC<{ notes: any[]; loading: boolean; onNewNote: () => void }> = ({ notes, loading, onNewNote }) => {
   if (loading) {
     return (
@@ -208,14 +204,7 @@ const HomeRedirect: React.FC<{ notes: any[]; loading: boolean; onNewNote: () => 
     );
   }
 
-  // Redirect synchronously via <Navigate> — no useEffect timing issues
-  const lastNoteId = localStorage.getItem('elsendo-last-note');
-  if (lastNoteId) {
-    return <Navigate to={`/note/${lastNoteId}`} replace />;
-  }
-
   if (notes.length > 0) {
-    localStorage.setItem('elsendo-last-note', notes[0].id);
     return <Navigate to={`/note/${notes[0].id}`} replace />;
   }
 

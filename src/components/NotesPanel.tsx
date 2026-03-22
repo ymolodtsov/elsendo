@@ -187,9 +187,8 @@ export const NotesPanel: React.FC<NotesPanelProps> = React.memo(({
                     await unarchiveNote(note.id);
                   } else {
                     await archiveNote(note.id);
-                    // If archiving the current note, clear it from last-note and navigate away
+                    // If archiving the current note, navigate away
                     if (note.id === noteId) {
-                      localStorage.removeItem('elsendo-last-note');
                       const remaining = notes.filter(n => n.id !== note.id);
                       if (remaining.length > 0) {
                         navigate(`/note/${remaining[0].id}`, { replace: true });
