@@ -239,11 +239,6 @@ const HomeRedirect: React.FC<{ notes: any[]; loading: boolean; onNewNote: () => 
 // Editor route component
 const EditorRoute: React.FC = () => {
   const { noteId } = useParams();
-  useEffect(() => {
-    if (noteId) {
-      localStorage.setItem('elsendo-last-note', noteId);
-    }
-  }, [noteId]);
 
   if (!noteId) {
     return <Navigate to="/" replace />;

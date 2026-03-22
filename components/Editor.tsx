@@ -190,6 +190,10 @@ export const Editor: React.FC<EditorProps> = ({ noteId, isShared = false }) => {
 
         if (note && note.content) {
           editor.commands.setContent(note.content);
+          // Only persist as last-opened after successful load
+          if (!isShared) {
+            localStorage.setItem('elsendo-last-note', noteId);
+          }
         }
       } catch (error) {
         console.error('Error loading note:', error);
