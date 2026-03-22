@@ -94,6 +94,7 @@ const AuthenticatedApp: React.FC = () => {
     });
 
     if (newNote) {
+      localStorage.setItem('elsendo-last-note', newNote.id);
       navigate(`/note/${newNote.id}`);
       setIsNotesOpen(false);
     }
@@ -111,14 +112,17 @@ const AuthenticatedApp: React.FC = () => {
     if (isCurrentNote) {
       const remainingNotes = notes.filter(n => n.id !== id);
       if (remainingNotes.length > 0) {
+        localStorage.setItem('elsendo-last-note', remainingNotes[0].id);
         navigate(`/note/${remainingNotes[0].id}`);
       } else {
+        localStorage.removeItem('elsendo-last-note');
         navigate('/');
       }
     }
   };
 
   const handleSelectNote = (id: string) => {
+    localStorage.setItem('elsendo-last-note', id);
     navigate(`/note/${id}`);
     setIsNotesOpen(false);
   };
@@ -203,6 +207,7 @@ const HomeRedirect: React.FC<{ notes: any[]; loading: boolean; onNewNote: () => 
     if (lastNoteId) {
       navigate(`/note/${lastNoteId}`, { replace: true });
     } else if (notes.length > 0) {
+      localStorage.setItem('elsendo-last-note', notes[0].id);
       navigate(`/note/${notes[0].id}`, { replace: true });
     }
   }, [notes, loading, navigate]);
