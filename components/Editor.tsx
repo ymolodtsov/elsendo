@@ -1,5 +1,4 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Link from '@tiptap/extension-link';
@@ -25,8 +24,6 @@ interface EditorProps {
 
 export const Editor: React.FC<EditorProps> = ({ noteId, isShared = false }) => {
   const [isLoading, setIsLoading] = useState(true);
-  const [notFound, setNotFound] = useState(false);
-  const navigate = useNavigate();
   const { getNote, updateNote, getNoteByShareToken } = useNotes();
   const { isOnline } = useConnectivity();
   const toolbarRef = useRef<ToolbarHandle>(null);
@@ -186,7 +183,6 @@ export const Editor: React.FC<EditorProps> = ({ noteId, isShared = false }) => {
       if (!editor) return;
 
       setIsLoading(true);
-      setNotFound(false);
       try {
         const note = isShared
           ? await getNoteByShareToken(noteId)
@@ -194,10 +190,6 @@ export const Editor: React.FC<EditorProps> = ({ noteId, isShared = false }) => {
 
         if (note && note.content) {
           editor.commands.setContent(note.content);
-        } else if (!note && !isShared) {
-          // Note doesn't exist — clear stale localStorage and redirect
-          localStorage.removeItem('elsendo-last-note');
-          setNotFound(true);
         }
       } catch (error) {
         console.error('Error loading note:', error);
@@ -210,11 +202,6 @@ export const Editor: React.FC<EditorProps> = ({ noteId, isShared = false }) => {
   }, [noteId, editor, isShared]);
 
   if (!editor) {
-    return null;
-  }
-
-  if (notFound) {
-    navigate('/', { replace: true });
     return null;
   }
 
