@@ -191,20 +191,37 @@ body {
    ============================================ */
 
 .link-open-arrow {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
-  font-size: 0.7em;
+  font-size: 0.65em;
+  width: 1.4em;
+  height: 1.4em;
   line-height: 1;
-  vertical-align: super;
-  margin-left: 1px;
-  opacity: 0.3;
-  transition: opacity 0.15s ease;
+  vertical-align: middle;
+  margin-left: 3px;
+  opacity: 0.5;
+  transition: all 0.15s ease;
   user-select: none;
   color: inherit;
+  background: rgba(120, 113, 108, 0.12);
+  border-radius: 3px;
 }
 
 .link-open-arrow:hover {
-  opacity: 0.8;
+  opacity: 1;
+  background: rgba(120, 113, 108, 0.25);
+}
+
+@media (prefers-color-scheme: dark) {
+  .link-open-arrow {
+    background: rgba(168, 162, 158, 0.15);
+  }
+
+  .link-open-arrow:hover {
+    background: rgba(168, 162, 158, 0.3);
+  }
 }
 
 /* ============================================
