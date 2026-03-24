@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { Note } from '../types';
 import { useNotes } from '../contexts/NotesContext';
+import { Archive } from 'lucide-react';
 
 const domParser = new DOMParser();
 
@@ -123,7 +124,7 @@ export const Omnibar: React.FC<OmnibarProps> = ({ onSelect, onClose }) => {
               >
                 <span className={note.archived ? 'opacity-60' : ''}>{note.title}</span>
                 {note.archived && (
-                  <span className="text-xs text-stone-400 dark:text-stone-500 shrink-0">archived</span>
+                  <Archive className="w-3.5 h-3.5 text-stone-400 dark:text-stone-500 shrink-0" strokeWidth={1.5} />
                 )}
               </button>
             ))
