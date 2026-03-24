@@ -9,9 +9,11 @@ import { Feather, Plus, FileText, X, Loader2 } from 'lucide-react';
 import { ConnectivityProvider, useConnectivity } from './src/contexts/ConnectivityContext';
 import { OfflineBanner } from './src/components/OfflineBanner';
 import { ConflictResolver } from './src/components/ConflictResolver';
+import { Omnibar } from './src/components/Omnibar';
 
 const AuthenticatedApp: React.FC = () => {
   const [isNotesOpen, setIsNotesOpen] = useState(false);
+  const [isOmnibarOpen, setIsOmnibarOpen] = useState(false);
   const [showMigrationToast, setShowMigrationToast] = useState(false);
   const { notes, loading, createNote, deleteNote, getNotes } = useNotes();
   const { isOnline } = useConnectivity();
@@ -63,6 +65,10 @@ const AuthenticatedApp: React.FC = () => {
       if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === 'f') {
         e.preventDefault();
         setIsNotesOpen(prev => !prev);
+      }
+      if ((e.metaKey || e.ctrlKey) && e.key === 'o') {
+        e.preventDefault();
+        setIsOmnibarOpen(prev => !prev);
       }
       if (e.key === 'Escape' && isNotesOpen) {
         setIsNotesOpen(false);
@@ -178,6 +184,14 @@ const AuthenticatedApp: React.FC = () => {
       >
         <Plus className="w-5 h-5" strokeWidth={2} />
       </button>
+
+      {isOmnibarOpen && (
+        <Omnibar
+          notes={notes}
+          onSelect={handleSelectNote}
+          onClose={() => setIsOmnibarOpen(false)}
+        />
+      )}
 
       {/* Migration Success Toast */}
       {showMigrationToast && (
