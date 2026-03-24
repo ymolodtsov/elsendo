@@ -9,6 +9,7 @@ import TaskItem from '@tiptap/extension-task-item';
 import Image from '@tiptap/extension-image';
 import { markInputRule } from '@tiptap/core';
 import { Plugin, PluginKey } from '@tiptap/pm/state';
+import { Decoration, DecorationSet } from '@tiptap/pm/view';
 import { DOMSerializer } from '@tiptap/pm/model';
 import { Toolbar, ToolbarHandle } from './Toolbar';
 import { htmlToMarkdown } from '../src/lib/htmlToMarkdown';
@@ -91,6 +92,44 @@ export const Editor: React.FC<EditorProps> = ({ noteId, isShared = false }) => {
             return modified ? tr : null;
           },
         }),
+        // Arrow widget after each link for navigation
+        new Plugin({
+          key: new PluginKey('linkArrow'),
+          props: {
+            decorations(state) {
+              const decorations: Decoration[] = [];
+              state.doc.descendants((node, pos) => {
+                if (!node.isText) return;
+                const mark = linkType.isInSet(node.marks);
+                if (!mark) return;
+
+                // Check if next character is still part of the same link
+                const endPos = pos + node.nodeSize;
+                const $end = state.doc.resolve(endPos);
+                const after = $end.nodeAfter;
+                const stillLink = after?.isText && linkType.isInSet(after.marks);
+                if (stillLink) return; // not the last text node of this link
+
+                const href = mark.attrs.href;
+                const widget = Decoration.widget(endPos, () => {
+                  const arrow = document.createElement('span');
+                  arrow.className = 'link-open-arrow';
+                  arrow.contentEditable = 'false';
+                  arrow.setAttribute('aria-label', 'Open link');
+                  arrow.textContent = '↗';
+                  arrow.addEventListener('mousedown', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    window.open(href, '_blank', 'noopener,noreferrer');
+                  });
+                  return arrow;
+                }, { side: 1 });
+                decorations.push(widget);
+              });
+              return DecorationSet.create(state.doc, decorations);
+            },
+          },
+        }),
       ];
     },
   });
@@ -103,7 +142,7 @@ export const Editor: React.FC<EditorProps> = ({ noteId, isShared = false }) => {
         },
       }),
       CustomLink.configure({
-        openOnClick: true,
+        openOnClick: false,
         autolink: true,
       }),
       Underline,
