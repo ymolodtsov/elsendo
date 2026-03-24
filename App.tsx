@@ -187,7 +187,6 @@ const AuthenticatedApp: React.FC = () => {
 
       {isOmnibarOpen && (
         <Omnibar
-          notes={notes}
           onSelect={handleSelectNote}
           onClose={() => setIsOmnibarOpen(false)}
         />

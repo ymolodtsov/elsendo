@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { Note } from '../types';
+import { useNotes } from '../contexts/NotesContext';
 
 const domParser = new DOMParser();
 
@@ -14,20 +15,30 @@ const extractTitle = (note: Note): string => {
 };
 
 interface OmnibarProps {
-  notes: Note[];
   onSelect: (id: string) => void;
   onClose: () => void;
 }
 
-export const Omnibar: React.FC<OmnibarProps> = ({ notes, onSelect, onClose }) => {
+export const Omnibar: React.FC<OmnibarProps> = ({ onSelect, onClose }) => {
+  const { notes, archivedNotes, getArchivedNotes } = useNotes();
   const [query, setQuery] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
 
+  // Fetch archived notes on mount if not already loaded
+  useEffect(() => {
+    if (archivedNotes.length === 0) {
+      getArchivedNotes();
+    }
+  }, []);
+
   const titledNotes = useMemo(
-    () => notes.map(n => ({ id: n.id, title: extractTitle(n), updatedAt: n.updated_at })),
-    [notes]
+    () => [
+      ...notes.map(n => ({ id: n.id, title: extractTitle(n), archived: false })),
+      ...archivedNotes.map(n => ({ id: n.id, title: extractTitle(n), archived: true })),
+    ],
+    [notes, archivedNotes]
   );
 
   const filtered = useMemo(() => {
@@ -106,13 +117,16 @@ export const Omnibar: React.FC<OmnibarProps> = ({ notes, onSelect, onClose }) =>
               <button
                 key={note.id}
                 onClick={() => handleSelect(note.id)}
-                className={`w-full text-left px-4 py-2.5 text-sm transition-colors ${
+                className={`w-full text-left px-4 py-2.5 text-sm flex items-center gap-2 transition-colors ${
                   i === selectedIndex
                     ? 'bg-stone-100 dark:bg-stone-700 text-stone-900 dark:text-stone-100'
                     : 'text-stone-700 dark:text-stone-300 hover:bg-stone-50 dark:hover:bg-stone-750'
                 }`}
               >
-                {note.title}
+                <span className={note.archived ? 'opacity-60' : ''}>{note.title}</span>
+                {note.archived && (
+                  <span className="text-xs text-stone-400 dark:text-stone-500 shrink-0">archived</span>
+                )}
               </button>
             ))
           )}
