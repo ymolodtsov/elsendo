@@ -201,26 +201,27 @@ body {
   line-height: 1;
   vertical-align: middle;
   margin-left: 3px;
-  opacity: 0.5;
   transition: all 0.15s ease;
   user-select: none;
-  color: inherit;
-  background: rgba(120, 113, 108, 0.12);
+  color: #57534e;
+  background: rgba(120, 113, 108, 0.18);
   border-radius: 3px;
 }
 
 .link-open-arrow:hover {
-  opacity: 1;
-  background: rgba(120, 113, 108, 0.25);
+  color: #292524;
+  background: rgba(120, 113, 108, 0.35);
 }
 
 @media (prefers-color-scheme: dark) {
   .link-open-arrow {
-    background: rgba(168, 162, 158, 0.15);
+    color: #a8a29e;
+    background: rgba(168, 162, 158, 0.25);
   }
 
   .link-open-arrow:hover {
-    background: rgba(168, 162, 158, 0.3);
+    color: #d6d3d1;
+    background: rgba(168, 162, 158, 0.45);
   }
 }
 
