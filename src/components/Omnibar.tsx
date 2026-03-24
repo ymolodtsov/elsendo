@@ -119,7 +119,7 @@ export const Omnibar: React.FC<OmnibarProps> = ({ onSelect, onClose }) => {
                 className={`w-full text-left px-4 py-2.5 text-sm flex items-center gap-2 transition-colors ${
                   i === selectedIndex
                     ? 'bg-stone-100 dark:bg-stone-700 text-stone-900 dark:text-stone-100'
-                    : 'text-stone-700 dark:text-stone-300 hover:bg-stone-50 dark:hover:bg-stone-700/50'
+                    : 'text-stone-700 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-700'
                 }`}
               >
                 <span className={note.archived ? 'opacity-60' : ''}>{note.title}</span>
