@@ -26,12 +26,10 @@ export const Omnibar: React.FC<OmnibarProps> = ({ onSelect, onClose }) => {
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
 
-  // Fetch archived notes on mount if not already loaded
+  // Always fetch archived notes when omnibar opens
   useEffect(() => {
-    if (archivedNotes.length === 0) {
-      getArchivedNotes();
-    }
-  }, []);
+    getArchivedNotes();
+  }, [getArchivedNotes]);
 
   const titledNotes = useMemo(
     () => [
