@@ -34,6 +34,12 @@ export default {
               marginTop: '0 !important',
               marginBottom: '0 !important',
             },
+            'blockquote p:first-of-type::before': {
+              content: 'none',
+            },
+            'blockquote p:last-of-type::after': {
+              content: 'none',
+            },
           },
         },
         invert: {

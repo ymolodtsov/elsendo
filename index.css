@@ -8,11 +8,6 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-.ProseMirror blockquote p::before,
-.ProseMirror blockquote p::after {
-  content: none;
-}
-
 /* Editor placeholder */
 .ProseMirror p.is-editor-empty:first-child::before {
   color: #a8a29e;
