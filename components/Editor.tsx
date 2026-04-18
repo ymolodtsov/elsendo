@@ -13,6 +13,7 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view';
 import { DOMSerializer } from '@tiptap/pm/model';
 import { Toolbar, ToolbarHandle } from './Toolbar';
 import { htmlToMarkdown } from '../src/lib/htmlToMarkdown';
+import { looksLikeMarkdown, markdownToHtml } from '../src/lib/markdownToHtml';
 import { LinkPreviewOverlay } from './LinkPreview';
 import { useNotes } from '../src/contexts/NotesContext';
 import { useConnectivity } from '../src/contexts/ConnectivityContext';
@@ -170,6 +171,22 @@ export const Editor: React.FC<EditorProps> = ({ noteId, isShared = false }) => {
     editorProps: {
       attributes: {
         class: 'prose prose-lg max-w-none focus:outline-none min-h-[60vh] leading-relaxed transition-colors duration-200 [&_li]:!my-1 [&_li>p]:!m-0 [&_li>ul]:!m-0 [&_li>ol]:!m-0 [&_ul]:!my-0 [&_ol]:!my-0 prose-headings:text-stone-800 dark:prose-headings:text-stone-100 prose-p:text-stone-700 dark:prose-p:text-stone-200 prose-a:text-stone-700 dark:prose-a:text-stone-300 prose-a:underline hover:prose-a:text-stone-800 dark:hover:prose-a:text-stone-200 prose-strong:text-stone-800 dark:prose-strong:text-stone-100 prose-ul:text-stone-700 dark:prose-ul:text-stone-200 prose-ol:text-stone-700 dark:prose-ol:text-stone-200',
+      },
+      handlePaste: (_view, event) => {
+        const clipboard = event.clipboardData;
+        if (!clipboard) return false;
+
+        // If clipboard has HTML, let Tiptap handle it natively
+        const html = clipboard.getData('text/html');
+        if (html) return false;
+
+        const text = clipboard.getData('text/plain');
+        if (!text || !looksLikeMarkdown(text)) return false;
+
+        // Convert Markdown to HTML and insert
+        const converted = markdownToHtml(text);
+        editor?.commands.insertContent(converted);
+        return true;
       },
       clipboardTextSerializer: (slice) => {
         const schema = slice.content.firstChild?.type.schema;
