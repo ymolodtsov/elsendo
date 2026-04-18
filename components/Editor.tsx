@@ -176,12 +176,17 @@ export const Editor: React.FC<EditorProps> = ({ noteId, isShared = false }) => {
         const clipboard = event.clipboardData;
         if (!clipboard) return false;
 
-        // If clipboard has HTML, let Tiptap handle it natively
-        const html = clipboard.getData('text/html');
-        if (html) return false;
-
         const text = clipboard.getData('text/plain');
         if (!text || !looksLikeMarkdown(text)) return false;
+
+        // If clipboard has HTML with real formatting (links, headings, bold, etc.),
+        // let Tiptap handle it natively — it's a rich copy from a web page.
+        // If the HTML is just a plain-text wrapper, prefer our Markdown conversion.
+        const html = clipboard.getData('text/html');
+        if (html) {
+          const hasRichContent = /<(a\s|strong|em|b>|i>|h[1-6]|ul|ol|blockquote|pre|img\s)/i.test(html);
+          if (hasRichContent) return false;
+        }
 
         // Convert Markdown to HTML and insert
         const converted = markdownToHtml(text);
