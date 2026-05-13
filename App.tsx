@@ -59,6 +59,13 @@ const AuthenticatedApp: React.FC = () => {
     }
   }, [loading, createNote, navigate]);
 
+  // Sync document title with the currently opened note
+  useEffect(() => {
+    const currentNoteId = location.pathname.match(/\/note\/(.+)/)?.[1];
+    const currentNote = currentNoteId ? notes.find(n => n.id === currentNoteId) : null;
+    document.title = currentNote?.title ? `${currentNote.title} - Elsendo` : 'Elsendo';
+  }, [location.pathname, notes]);
+
   // Toggle notes panel keyboard shortcut
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
