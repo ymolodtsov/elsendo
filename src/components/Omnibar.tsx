@@ -8,7 +8,7 @@ const domParser = new DOMParser();
 const extractTitle = (note: Note): string => {
   if (note.title) return note.title;
   const doc = domParser.parseFromString(note.content, 'text/html');
-  const heading = doc.querySelector('h1, h2')?.textContent;
+  const heading = doc.querySelector('h1, h2, h3')?.textContent;
   if (heading) return heading.slice(0, 60);
   const paragraph = doc.querySelector('p')?.textContent;
   if (paragraph) return paragraph.slice(0, 60);

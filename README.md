@@ -43,6 +43,7 @@ A beautiful, minimalist note-taking app with real-time sync, offline support, an
 
 - `#` + Space → Heading 1
 - `##` + Space → Heading 2
+- `###` + Space → Heading 3
 - `*` or `-` + Space → Bullet list
 - `[]` + Space → Task list
 - `**text**` → Bold

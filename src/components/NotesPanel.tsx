@@ -13,7 +13,7 @@ const domParser = new DOMParser();
 // Extract title from note content - memoized per note
 const extractTitleFromContent = (content: string): string => {
   const doc = domParser.parseFromString(content, 'text/html');
-  const firstHeading = doc.querySelector('h1, h2')?.textContent;
+  const firstHeading = doc.querySelector('h1, h2, h3')?.textContent;
   if (firstHeading) return firstHeading.slice(0, 40);
 
   const firstParagraph = doc.querySelector('p')?.textContent;

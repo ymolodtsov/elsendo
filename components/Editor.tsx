@@ -35,7 +35,7 @@ export const Editor: React.FC<EditorProps> = ({ noteId, isShared = false }) => {
     onSave: async (content: string) => {
       if (!isShared) {
         const doc = new DOMParser().parseFromString(content, 'text/html');
-        const firstHeading = doc.querySelector('h1, h2')?.textContent;
+        const firstHeading = doc.querySelector('h1, h2, h3')?.textContent;
         const title = firstHeading || null;
 
         await updateNote(noteId, { content, title });
@@ -139,7 +139,7 @@ export const Editor: React.FC<EditorProps> = ({ noteId, isShared = false }) => {
     extensions: [
       StarterKit.configure({
         heading: {
-          levels: [1, 2],
+          levels: [1, 2, 3],
         },
       }),
       CustomLink.configure({

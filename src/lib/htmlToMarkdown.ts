@@ -21,6 +21,7 @@ export function htmlToMarkdown(html: string): string {
     switch (el.tagName) {
       case 'H1': return `\n# ${stripInlineFormatting(children)}\n`;
       case 'H2': return `\n## ${stripInlineFormatting(children)}\n`;
+      case 'H3': return `\n### ${stripInlineFormatting(children)}\n`;
       case 'P': {
         if (isInsideTag(node, 'LI')) {
           // Multiple paragraphs in a list item: separate with newline + indent
@@ -32,12 +33,12 @@ export function htmlToMarkdown(html: string): string {
       }
       case 'STRONG':
       case 'B': {
-        if (isInsideTag(node, 'H1') || isInsideTag(node, 'H2')) return children;
+        if (isInsideTag(node, 'H1') || isInsideTag(node, 'H2') || isInsideTag(node, 'H3')) return children;
         return `**${children}**`;
       }
       case 'EM':
       case 'I': {
-        if (isInsideTag(node, 'H1') || isInsideTag(node, 'H2')) return children;
+        if (isInsideTag(node, 'H1') || isInsideTag(node, 'H2') || isInsideTag(node, 'H3')) return children;
         return `*${children}*`;
       }
       case 'S':
